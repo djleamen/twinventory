@@ -1,10 +1,12 @@
 ## **Twinventory / miirror.tech Architecture**![][image1]
 
+> **Current backend contract:** product browsing and search use `GET /products/list` and `GET /products/search`; image try-on uses `POST /products/try`. Products use `{id, title, description, image, price, category, url}`. This supersedes the original vector-based `/recs/query` notes below.
+
 **Three flows, that's the whole app:**
 
 1. **Avatar:** photo goes to a vision LLM with a strict JSON schema (skin tone, hair style/color, face shape, eye/brow/mouth type, glasses). Frontend applies that to one base GLB. Trick that saves your weekend: Mii faces are 2D decals on a head, not sculpted geometry. So eyes, brows, and mouth are texture swaps, hair is a mesh swap, skin is a material color. No blendshape authoring needed. The guided editor is just a UI over the same JSON.  
 2. **Inventory:** item photo goes through rembg, the vision LLM tags it (category, color, style), you embed it and store it. Clothes stay as 2D cutouts layered over the avatar in the closet view. Furniture gets sent to an image-to-3D API as a background job and drops into the grid room when the GLB is ready.  
-3. **Recs:** average the user's item embeddings into a style vector, run Atlas Vector Search against product embeddings pulled from Shopify, show results as cutouts on the avatar or props in the room, with the product link on the card.
+3. **Recs:** run semantic text search against products in Elasticsearch, show results as cutouts on the avatar, and include the product link on the card.
 
 **Build order with cut lines:** avatar from photo (the wow moment, do it first), inventory grid, closet mix and match, recs with buy links, then the room. If you run out of time, the room is what gets cut. A half-working Sims room hurts the demo more than no room.
 
@@ -87,29 +89,24 @@
 
 * rembg on user item photos, OpenAI tagging (category, color, style)  
 * Same tagging pipeline applied to Shopify/scraped product photos as they come in from C  
-* OpenAI embeddings for both user items and products  
-* Writes items to Mongo (via C's schema), sends product embeddings toward Elastic (via C's index)
+* OpenAI tagging for user items and products
+* Writes items to Mongo (via C's schema) and normalized products to Elastic
 
 &nbsp;
 
-**Stack:** FastAPI, `rembg` (Python lib), OpenAI (vision tagging \+ embeddings), MongoDB Atlas (`pymongo`), React for closet UI
+**Stack:** FastAPI, `rembg` (Python lib), OpenAI vision tagging, MongoDB Atlas (`pymongo`), React for closet UI
 
 Person B is really running **two connected pipelines**: (1) turn photos into tagged, embedded, stored items, and (2) turn a user's free-text prompt into a query vector that Person C's Elastic endpoint can use. Breaking it down:
 
 **Backend files:**
 
 * `backend/routers/inventory.py`  
-  * `POST /inventory/upload` — accepts item photo → calls `rembg` → calls OpenAI tagging → calls OpenAI embedding → writes to Mongo  
+  * `POST /inventory/upload` — accepts item photo → calls `rembg` → calls OpenAI tagging → writes to Mongo
   * `GET /inventory/{user_id}` — returns user's items for closet UI  
 * `backend/services/rembg_service.py` — wraps `rembg` background removal, returns cutout image (save to disk/S3/base64 for frontend)  
 * `backend/services/tagging_service.py` — `tag_item(image) -> {category, color, style}` via OpenAI vision call, structured output (Pydantic model)  
-* `backend/services/embedding_service.py` — `embed_item(tags, image_description) -> vector`; also used by C for product embeddings (shared function, B owns it since B builds it first)  
 * `backend/routers/recs.py` (shared file with D, B owns backend half)  
-  * `POST /recs/query` — accepts either:  
-    * a style vector request: fetch user's items from Mongo → average embeddings → style vector  
-    * a free-text prompt ("going to a wedding") → OpenAI call to parse/expand it into a search-ready text → embed that text → query vector  
-  * Calls C's Elastic search function, returns ranked results to D's frontend  
-* `backend/services/query_parser.py` — `parse_prompt(text) -> expanded_query_text` (e.g., OpenAI turns "wedding" into "formal wear, dresses, suits, elegant") before embedding — this step meaningfully improves recs quality, worth the extra call
+  * Replaced by `backend/routers/products.py`, which exposes product listing, semantic search, and image try-on
 
 **Frontend files:**
 
@@ -119,7 +116,7 @@ Person B is really running **two connected pipelines**: (1) turn photos into tag
 
 **Mongo collections B writes to:**
 
-* `items` — `{user_id, image_url, category, color, style, embedding, created_at}`
+* `items` — `{user_id, image_url, category, color, style, created_at}`
 
 &nbsp;
 
@@ -128,11 +125,11 @@ Person B is really running **two connected pipelines**: (1) turn photos into tag
 **DJ**
 
 * Mongo Atlas schema: users, avatar JSON, inventory items  
-* Elasticsearch index setup, ingest product embeddings from B, build kNN/hybrid query endpoint
+* Elasticsearch index setup, product ingestion, and semantic text query endpoint
 
 **Fiona**
 
-* Shopify Storefront API pull (or Browserbase scrape as fallback/supplement) → hand product photos to B for tagging/embedding (Fiona) → one endpoint  
+* Shopify Storefront API pull (or Browserbase scrape as fallback/supplement) → normalize products for Elastic ingestion (Fiona)
 * Sentry instrumented across this pipeline from the start (ingestion \+ tagging calls are your tracing story) (Fiona)
 
 &nbsp;
@@ -142,11 +139,11 @@ Person B is really running **two connected pipelines**: (1) turn photos into tag
 **Backend files:**
 
 * `backend/services/mongo_client.py` — connection setup, schema helpers, used by everyone  
-* `backend/services/elastic_client.py` — index setup, `index_product()`, `search(vector, filters) -> ranked results`  
+* `backend/services/elastic_client.py` — `insert_products()`, `list_products()`, and `query_products()`
 * `backend/routers/products.py`  
   * internal script/endpoint to pull Shopify products (Storefront API) or scrape via Browserbase  
-  * hands product photos to B's `tagging_service` and `embedding_service` (import/reuse, don't duplicate)  
-  * writes results into Elastic via `elastic_client.index_product()`  
+  * hands product photos to B's `tagging_service` (import/reuse, don't duplicate)  
+  * writes results into Elastic via `elastic_client.insert_products()`
 * `backend/scripts/seed_products.py` — one-off script run at hour 0-1 to seed the store/index, rerunnable  
 * `backend/main.py` — app wiring, router includes, Sentry init, CORS, deploy config
 
@@ -156,7 +153,7 @@ Person B is really running **two connected pipelines**: (1) turn photos into tag
 
 **Elastic index C owns:**
 
-* `products` — `{product_id, title, image_url, tags, embedding, shop_url, price}`
+* `products` — `{id, title, description, image, price, category, url}` plus internal `semantic_text`
 
 &nbsp;
 
@@ -170,7 +167,7 @@ Person B is really running **two connected pipelines**: (1) turn photos into tag
 
 **Frontend files:**
 
-* `frontend/src/recs/PromptInput.jsx` — text box for "going to a wedding…" style queries, calls B's `/recs/query`  
+* `frontend/src/recs/PromptInput.jsx` — text box for "going to a wedding…" style queries, calls `/products/search`  
 * `frontend/src/recs/ResultsGrid.jsx` — result cards: cutout image, product link, price  
 * `frontend/src/voice/VoiceInput.jsx` — ElevenLabs speech-to-text, feeds transcript into the **same** `PromptInput` handler (no separate backend path)  
 * `frontend/src/App.jsx` — top-level routing/state tying avatar \+ closet \+ recs together  
@@ -185,7 +182,7 @@ Person B is really running **two connected pipelines**: (1) turn photos into tag
 
 **Person A:** polish avatar (edge cases, guided-editor manual override UI over the same JSON)
 
-**Person B:** finish item tagging/embedding into Mongo; start on style-vector logic — average a user's item embeddings, or parse the free-text prompt ("wedding") into a query embedding via OpenAI
+**Person B:** finish item tagging into Mongo and connect free-text prompts to product semantic search
 
 **Person C:** expose the search endpoint properly: takes style vector or prompt-derived vector → Elastic hybrid search → ranked products with buy links; keep feeding C+B's ingest loop with more Shopify/scraped products
 
@@ -225,7 +222,7 @@ Person B is really running **two connected pipelines**: (1) turn photos into tag
 * **Backend:** FastAPI (Python), one service or lightweight microservices per domain — for 24hrs, I'd do **one FastAPI app with routers per domain**, not separate services, to avoid deployment overhead  
 * **DB:** MongoDB Atlas (via `pymongo` or `motor` for async)  
 * **Search:** Elasticsearch (via `elasticsearch-py`)  
-* **AI:** OpenAI Python SDK (vision, embeddings, chat)  
+* **AI:** OpenAI Python SDK (vision and image generation)  
 * **Observability:** Sentry SDK (Python \+ JS)  
 * **Repo layout (suggested):**
 
