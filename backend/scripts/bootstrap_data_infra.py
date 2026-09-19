@@ -19,26 +19,17 @@ def required_env(name: str) -> str:
     return value
 
 
-def product_mappings(dimensions: int) -> dict:
+def product_mappings() -> dict:
     return {
         "properties": {
-            "product_id": {"type": "keyword"},
+            "id": {"type": "keyword"},
             "title": {"type": "text"},
             "description": {"type": "text"},
-            "image_url": {"type": "keyword", "index": False},
+            "image": {"type": "keyword", "index": False},
+            "price": {"type": "float"},
             "category": {"type": "keyword"},
-            "color": {"type": "keyword"},
-            "style": {"type": "keyword"},
-            "tags": {"type": "text"},
-            "embedding": {
-                "type": "dense_vector",
-                "dims": dimensions,
-                "index": True,
-                "similarity": "cosine",
-            },
-            "shop_url": {"type": "keyword", "index": False},
-            "price": {"type": "scaled_float", "scaling_factor": 100},
-            "currency": {"type": "keyword"},
+            "url": {"type": "keyword", "index": False},
+            "semantic_text": {"type": "semantic_text"},
         }
     }
 
@@ -57,7 +48,6 @@ def bootstrap_mongodb() -> None:
 
 
 def bootstrap_elasticsearch() -> None:
-    dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
     client = Elasticsearch(
         required_env("ELASTICSEARCH_URL"),
         api_key=required_env("ELASTICSEARCH_API_KEY"),
@@ -67,18 +57,22 @@ def bootstrap_elasticsearch() -> None:
 
     if client.indices.exists(index=PRODUCTS_INDEX):
         mapping = client.indices.get_mapping(index=PRODUCTS_INDEX)
-        actual = mapping[PRODUCTS_INDEX]["mappings"]["properties"]["embedding"]["dims"]
-        if actual != dimensions:
+        semantic_type = (
+            mapping[PRODUCTS_INDEX]["mappings"]["properties"]
+            .get("semantic_text", {})
+            .get("type")
+        )
+        if semantic_type != "semantic_text":
             raise RuntimeError(
-                f"Existing {PRODUCTS_INDEX} index uses {actual} dimensions; expected {dimensions}"
+                f"Existing {PRODUCTS_INDEX} index must map semantic_text as semantic_text"
             )
     else:
         client.indices.create(
             index=PRODUCTS_INDEX,
-            mappings=product_mappings(dimensions),
+            mappings=product_mappings(),
         )
 
-    print(f"Elasticsearch ready: {PRODUCTS_INDEX} ({dimensions} dimensions, cosine)")
+    print(f"Elasticsearch ready: {PRODUCTS_INDEX} (semantic_text)")
 
 
 if __name__ == "__main__":

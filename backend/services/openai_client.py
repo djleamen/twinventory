@@ -1,6 +1,11 @@
+from functools import lru_cache
+
 from openai import OpenAI
 
-client = OpenAI()
+
+@lru_cache(maxsize=1)
+def get_openai_client() -> OpenAI:
+    return OpenAI()
 
 
 def combine_images(image_urls: list[str]):
@@ -15,7 +20,7 @@ def combine_images(image_urls: list[str]):
         for image_url in image_urls
     ]
 
-    response = client.responses.create(
+    response = get_openai_client().responses.create(
         model="gpt-5.6-luna",
         tools=[
             {

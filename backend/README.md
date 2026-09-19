@@ -29,9 +29,11 @@ The API is available at `http://127.0.0.1:8000`, with interactive documentation 
 | `OPENAI_API_KEY` | OpenAI key used for try-on image generation |
 | `MONGODB_URI` | MongoDB connection string used by the health check and inventory services |
 | `MONGODB_DB` | MongoDB database name |
+| `BROWSERBASE_API_KEY` | Browserbase key used by the product scraper |
+| `BROWSERBASE_PROJECT_ID` | Browserbase project used by the product scraper |
 | `FRONTEND_ORIGINS` | Comma-separated browser origins allowed by CORS; defaults to `http://localhost:5173` |
 
-An OpenAI key is currently required when the application starts, even when only product endpoints are used.
+OpenAI credentials are loaded only when try-on is called. Browserbase credentials are loaded only when the scraper runs.
 
 ## Product schema
 
@@ -57,20 +59,22 @@ Product ingestion uses `services.elastic_client.insert_products()`. It writes `t
 
 Returns `200` when MongoDB and Elasticsearch are reachable. Returns `503` with the unavailable dependency identified otherwise.
 
-### `GET /products/list`
+### `GET /products`
 
-Lists up to 20 products. The optional `category` query parameter applies an exact category filter.
+Lists products. `category` is an optional exact-match filter; `limit` accepts 1 through 100 and defaults to 20.
 
 ```text
-GET /products/list?category=dress
+GET /products?category=Shoes&limit=100
 ```
+
+`GET /products/list` remains available as a temporary compatibility alias but is omitted from OpenAPI.
 
 ### `GET /products/search`
 
-Searches the `semantic_text` field. `query` is required and `category` is optional.
+Searches the `semantic_text` field. `q` is required; `category` and `limit` are optional.
 
 ```text
-GET /products/search?query=winter%20clothing&category=coat
+GET /products/search?q=winter%20clothing&category=coat&limit=20
 ```
 
 ### `POST /products/try`
@@ -93,6 +97,26 @@ Response:
 	"image": "base64-encoded-image"
 }
 ```
+
+At least two image URLs are required: the user's image and one selected product.
+
+## Product ingestion
+
+Configure shops in `backend/config.json`, then run the scraper from the repository root:
+
+```bash
+PYTHONPATH=backend .venv-local/bin/python backend/scripts/scrape_products.py
+```
+
+The scraper normalizes Shopify products and upserts them into Elasticsearch by stable product ID. It is intentionally not exposed as a public HTTP endpoint.
+
+To create or verify MongoDB and Elasticsearch infrastructure:
+
+```bash
+.venv-local/bin/python backend/scripts/bootstrap_data_infra.py
+```
+
+See [../docs/api-contract.md](../docs/api-contract.md) for the complete integration contract.
 
 ## Tests
 

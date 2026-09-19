@@ -12,6 +12,7 @@ os.environ.setdefault("OPENAI_API_KEY", "test-key")
 import main
 from routers.products import (
     TryOnRequest,
+    get_products,
     list_products_route,
     search_products_route,
     try_on_route,
@@ -20,24 +21,34 @@ from routers.products import (
 
 class ProductRouteTests(unittest.TestCase):
     @patch("routers.products.list_products")
-    def test_list_forwards_category(self, list_products) -> None:
+    def test_list_forwards_category_and_limit(self, list_products) -> None:
         list_products.return_value = [{"id": "dress-1"}]
 
-        response = list_products_route(category="dress")
+        response = get_products(category="dress", limit=10)
 
-        self.assertEqual(response, [{"id": "dress-1"}])
-        list_products.assert_called_once_with(category="dress")
+        self.assertEqual(response, {"products": [{"id": "dress-1"}]})
+        list_products.assert_called_once_with(category="dress", limit=10)
+
+    @patch("routers.products.get_products")
+    def test_list_alias_uses_current_list_contract(self, get_products) -> None:
+        get_products.return_value = {"products": []}
+
+        response = list_products_route(category="dress", limit=10)
+
+        self.assertEqual(response, {"products": []})
+        get_products.assert_called_once_with(category="dress", limit=10)
 
     @patch("routers.products.query_products")
     def test_search_forwards_query_and_category(self, query_products) -> None:
         query_products.return_value = [{"id": "dress-1"}]
 
-        response = search_products_route(query="winter clothing", category="dress")
+        response = search_products_route(q="winter clothing", category="dress", limit=5)
 
-        self.assertEqual(response, [{"id": "dress-1"}])
+        self.assertEqual(response, {"products": [{"id": "dress-1"}]})
         query_products.assert_called_once_with(
-            query="winter clothing",
+            "winter clothing",
             category="dress",
+            limit=5,
         )
 
     @patch("routers.products.combine_images", return_value="base64-image")
@@ -52,9 +63,11 @@ class ProductRouteTests(unittest.TestCase):
     def test_openapi_exposes_current_product_contract(self) -> None:
         paths = TestClient(main.app).get("/openapi.json").json()["paths"]
 
-        self.assertIn("/products/list", paths)
+        self.assertIn("/products", paths)
         self.assertIn("/products/search", paths)
         self.assertIn("/products/try", paths)
+        self.assertNotIn("/products/list", paths)
+        self.assertNotIn("/products/scrape", paths)
         self.assertNotIn("/recs/query", paths)
 
 
