@@ -8,4 +8,4 @@ dependencies = [
 	"elasticsearch>=9,<10",
 	"pymongo>=4.11,<5",
 	"python-dotenv>=1,<2",
-]
+    "openai>=3.16.2",
