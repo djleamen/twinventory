@@ -12,6 +12,8 @@ dependencies = [
     "openai>=3.16.2",
 	"pymongo>=4.11,<5",
 	"python-dotenv>=1,<2",
+	"python-multipart",
+	"rembg[cpu]",
 	"requests>=2.34.2",
 	"uvicorn[standard]>=0.35,<1",
 ]
