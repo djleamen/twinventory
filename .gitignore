@@ -1,0 +1,10 @@
+.env
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/uploads/*
+!backend/uploads/.gitkeep
+.env.example
+cutout.png
+test.png
+test.jpg
