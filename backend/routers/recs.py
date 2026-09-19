@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from services.embedding_service import embed_item
 from services.query_parser import parse_prompt
 from services.mongo_client import get_items
-from services.stub_store import search_products  # swap for elastic_client.search() when DJ's index is ready
+from services.stub_store import search_products  # swap when index is ready
 
 router = APIRouter()
 
