@@ -7,36 +7,42 @@ from pydantic import ValidationError
 
 import main
 from routers.recs import RecommendationQuery, query_recommendations
+from services.elastic_client import Product
 
 
 class RecommendationRouteTests(unittest.TestCase):
-    @patch("routers.recs.search_products")
-    def test_query_forwards_vector_text_filters_and_limit(self, search_products) -> None:
-        search_products.return_value = [{"product_id": "dress-1", "score": 0.9}]
-        request = RecommendationQuery(
-            query_vector=[0.0] * 1536,
-            query_text="wedding",
-            category="dress",
-            limit=5,
-        )
+    @patch("routers.recs.query_products")
+    def test_query_with_text_forwards_to_query_products(self, query_products) -> None:
+        query_products.return_value = [
+            Product(
+                id="dress-1",
+                title="Dress",
+                description="desc",
+                image="img",
+                price=10.0,
+                category="dress",
+                url="url",
+            )
+        ]
+        request = RecommendationQuery(query_text="wedding", category="dress", limit=5)
 
         response = query_recommendations(request)
 
-        self.assertEqual(response["results"][0]["product_id"], "dress-1")
-        search_products.assert_called_once_with(
-            request.query_vector,
-            query_text="wedding",
-            filters={"category": "dress"},
-            limit=5,
-        )
+        self.assertEqual(response["results"][0].id, "dress-1")
+        query_products.assert_called_once_with("wedding", category="dress", limit=5)
+
+    @patch("routers.recs.list_products")
+    def test_query_without_text_forwards_to_list_products(self, list_products) -> None:
+        list_products.return_value = []
+        request = RecommendationQuery(category="dress", limit=5)
+
+        query_recommendations(request)
+
+        list_products.assert_called_once_with(category="dress", limit=5)
 
     def test_query_rejects_out_of_range_limit(self) -> None:
         with self.assertRaises(ValidationError):
-            RecommendationQuery(query_vector=[0.0] * 1536, limit=0)
-
-    def test_query_rejects_wrong_embedding_size(self) -> None:
-        with self.assertRaises(ValidationError):
-            RecommendationQuery(query_vector=[0.0])
+            RecommendationQuery(limit=0)
 
 
 class HealthRouteTests(unittest.TestCase):

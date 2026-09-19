@@ -1,59 +1,60 @@
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-from services.elastic_client import index_product, search_products
+from services.elastic_client import Product, insert_products, list_products, query_products
+
+
+def _product(**overrides) -> Product:
+    defaults = dict(
+        id="dress-1",
+        title="Dress",
+        description="A nice dress",
+        image="https://example.com/dress.jpg",
+        price=49.99,
+        category="dresses",
+        url="https://example.com/products/dress",
+    )
+    return Product(**{**defaults, **overrides})
 
 
 class ElasticClientTests(unittest.TestCase):
-    @patch("services.elastic_client.get_elasticsearch_client")
-    def test_search_builds_hybrid_query(self, get_client) -> None:
-        client = Mock()
+    @patch("services.elastic_client.bulk")
+    def test_insert_products_bulk_indexes_with_semantic_text(self, bulk) -> None:
+        insert_products([_product()])
+
+        bulk.assert_called_once()
+        _client_arg, actions = bulk.call_args.args
+        self.assertEqual(actions[0]["_index"], "products")
+        self.assertEqual(actions[0]["_id"], "dress-1")
+        self.assertEqual(actions[0]["_source"]["semantic_text"], "Dress\n\nA nice dress")
+
+    @patch("services.elastic_client.bulk")
+    def test_insert_products_skips_bulk_when_empty(self, bulk) -> None:
+        insert_products([])
+        bulk.assert_not_called()
+
+    @patch("services.elastic_client.client")
+    def test_query_products_filters_by_category(self, client) -> None:
         client.search.return_value = {
-            "hits": {
-                "hits": [
-                    {
-                        "_score": 1.25,
-                        "_source": {"product_id": "dress-1", "title": "Dress"},
-                    }
-                ]
-            }
+            "hits": {"hits": [{"_source": vars(_product())}]}
         }
-        get_client.return_value = client
 
-        results = search_products(
-            [0.0] * 1536,
-            query_text="wedding",
-            filters={"category": "dress", "ignored": "value"},
-            limit=5,
-        )
+        results = query_products("dress", category="dresses", limit=5)
 
-        self.assertEqual(results[0]["score"], 1.25)
+        self.assertEqual(results[0].id, "dress-1")
         request = client.search.call_args.kwargs
-        self.assertEqual(request["knn"]["k"], 5)
-        self.assertEqual(request["knn"]["num_candidates"], 100)
-        self.assertEqual(
-            request["knn"]["filter"],
-            {"bool": {"filter": [{"term": {"category": "dress"}}]}},
-        )
-        self.assertEqual(request["source_excludes"], ["embedding"])
+        self.assertEqual(request["size"], 5)
+        self.assertEqual(request["query"]["bool"]["filter"], [{"term": {"category": "dresses"}}])
 
-    def test_search_rejects_wrong_embedding_size(self) -> None:
-        with self.assertRaises(ValueError):
-            search_products([0.0, 1.0])
+    @patch("services.elastic_client.client")
+    def test_list_products_without_category_matches_all(self, client) -> None:
+        client.search.return_value = {"hits": {"hits": []}}
 
-    @patch("services.elastic_client.get_elasticsearch_client")
-    def test_index_uses_product_id_as_document_id(self, get_client) -> None:
-        client = Mock()
-        get_client.return_value = client
-        product = {"product_id": "dress-1", "embedding": [0.0] * 1536}
+        list_products(limit=3)
 
-        index_product(product)
-
-        client.index.assert_called_once_with(
-            index="products",
-            id="dress-1",
-            document=product,
-        )
+        request = client.search.call_args.kwargs
+        self.assertEqual(request["query"], {"match_all": {}})
+        self.assertEqual(request["size"], 3)
 
 
 if __name__ == "__main__":

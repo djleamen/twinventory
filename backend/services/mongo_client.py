@@ -32,10 +32,6 @@ def get_items_collection() -> Collection[dict[str, Any]]:
     return get_database()["items"]
 
 
-def get_products_collection() -> Collection[dict[str, Any]]:
-    return get_database()["products"]
-
-
 def mongo_is_ready() -> bool:
     get_mongo_client().admin.command("ping")
     return True
