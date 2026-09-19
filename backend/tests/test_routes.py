@@ -3,40 +3,59 @@ import unittest
 from unittest.mock import patch
 
 from fastapi import Response
-from pydantic import ValidationError
+from fastapi.testclient import TestClient
+
+os.environ.setdefault("ELASTICSEARCH_URL", "http://localhost:9200")
+os.environ.setdefault("ELASTICSEARCH_API_KEY", "test-key")
+os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
 import main
-from routers.recs import RecommendationQuery, query_recommendations
+from routers.products import (
+    TryOnRequest,
+    list_products_route,
+    search_products_route,
+    try_on_route,
+)
 
 
-class RecommendationRouteTests(unittest.TestCase):
-    @patch("routers.recs.search_products")
-    def test_query_forwards_vector_text_filters_and_limit(self, search_products) -> None:
-        search_products.return_value = [{"product_id": "dress-1", "score": 0.9}]
-        request = RecommendationQuery(
-            query_vector=[0.0] * 1536,
-            query_text="wedding",
+class ProductRouteTests(unittest.TestCase):
+    @patch("routers.products.list_products")
+    def test_list_forwards_category(self, list_products) -> None:
+        list_products.return_value = [{"id": "dress-1"}]
+
+        response = list_products_route(category="dress")
+
+        self.assertEqual(response, [{"id": "dress-1"}])
+        list_products.assert_called_once_with(category="dress")
+
+    @patch("routers.products.query_products")
+    def test_search_forwards_query_and_category(self, query_products) -> None:
+        query_products.return_value = [{"id": "dress-1"}]
+
+        response = search_products_route(query="winter clothing", category="dress")
+
+        self.assertEqual(response, [{"id": "dress-1"}])
+        query_products.assert_called_once_with(
+            query="winter clothing",
             category="dress",
-            limit=5,
         )
 
-        response = query_recommendations(request)
+    @patch("routers.products.combine_images", return_value="base64-image")
+    def test_try_on_combines_requested_images(self, combine_images) -> None:
+        request = TryOnRequest(image_urls=["person.jpg", "dress.jpg"])
 
-        self.assertEqual(response["results"][0]["product_id"], "dress-1")
-        search_products.assert_called_once_with(
-            request.query_vector,
-            query_text="wedding",
-            filters={"category": "dress"},
-            limit=5,
-        )
+        response = try_on_route(request)
 
-    def test_query_rejects_out_of_range_limit(self) -> None:
-        with self.assertRaises(ValidationError):
-            RecommendationQuery(query_vector=[0.0] * 1536, limit=0)
+        self.assertEqual(response, {"image": "base64-image"})
+        combine_images.assert_called_once_with(["person.jpg", "dress.jpg"])
 
-    def test_query_rejects_wrong_embedding_size(self) -> None:
-        with self.assertRaises(ValidationError):
-            RecommendationQuery(query_vector=[0.0])
+    def test_openapi_exposes_current_product_contract(self) -> None:
+        paths = TestClient(main.app).get("/openapi.json").json()["paths"]
+
+        self.assertIn("/products/list", paths)
+        self.assertIn("/products/search", paths)
+        self.assertIn("/products/try", paths)
+        self.assertNotIn("/recs/query", paths)
 
 
 class HealthRouteTests(unittest.TestCase):

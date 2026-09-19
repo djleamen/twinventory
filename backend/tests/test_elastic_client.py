@@ -1,58 +1,88 @@
+import os
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-from services.elastic_client import index_product, search_products
+os.environ.setdefault("ELASTICSEARCH_URL", "http://localhost:9200")
+os.environ.setdefault("ELASTICSEARCH_API_KEY", "test-key")
+
+from services.elastic_client import Product, insert_products, list_products, query_products
 
 
 class ElasticClientTests(unittest.TestCase):
-    @patch("services.elastic_client.get_elasticsearch_client")
-    def test_search_builds_hybrid_query(self, get_client) -> None:
-        client = Mock()
-        client.search.return_value = {
+    def setUp(self) -> None:
+        self.product = Product(
+            id="dress-1",
+            title="Blue Dress",
+            description="Formal summer dress",
+            image="https://example.com/dress.jpg",
+            price=89.0,
+            category="dress",
+            url="https://example.com/products/dress",
+        )
+
+    @patch("services.elastic_client.bulk")
+    def test_insert_products_builds_semantic_text(self, bulk) -> None:
+        insert_products([self.product])
+
+        actions = bulk.call_args.args[1]
+        self.assertEqual(actions[0]["_id"], "dress-1")
+        self.assertEqual(
+            actions[0]["_source"]["semantic_text"],
+            "Blue Dress\n\nFormal summer dress",
+        )
+
+    @patch("services.elastic_client.client.search")
+    def test_query_products_builds_semantic_search(self, search) -> None:
+        search.return_value = {
             "hits": {
                 "hits": [
                     {
-                        "_score": 1.25,
-                        "_source": {"product_id": "dress-1", "title": "Dress"},
+                        "_source": {
+                            "id": self.product.id,
+                            "title": self.product.title,
+                            "description": self.product.description,
+                            "image": self.product.image,
+                            "price": self.product.price,
+                            "category": self.product.category,
+                            "url": self.product.url,
+                        }
                     }
                 ]
             }
         }
-        get_client.return_value = client
 
-        results = search_products(
-            [0.0] * 1536,
-            query_text="wedding",
-            filters={"category": "dress", "ignored": "value"},
+        results = query_products(
+            "summer wedding",
+            category="dress",
             limit=5,
         )
 
-        self.assertEqual(results[0]["score"], 1.25)
-        request = client.search.call_args.kwargs
-        self.assertEqual(request["knn"]["k"], 5)
-        self.assertEqual(request["knn"]["num_candidates"], 100)
+        self.assertEqual(results, [self.product])
+        request = search.call_args.kwargs
         self.assertEqual(
-            request["knn"]["filter"],
-            {"bool": {"filter": [{"term": {"category": "dress"}}]}},
+            request["query"],
+            {
+                "bool": {
+                    "must": [{"match": {"semantic_text": "summer wedding"}}],
+                    "filter": [{"term": {"category": "dress"}}],
+                }
+            },
         )
-        self.assertEqual(request["source_excludes"], ["embedding"])
+        self.assertEqual(request["size"], 5)
+        self.assertEqual(request["source_excludes"], ["semantic_text"])
 
-    def test_search_rejects_wrong_embedding_size(self) -> None:
-        with self.assertRaises(ValueError):
-            search_products([0.0, 1.0])
+    @patch("services.elastic_client.client.search")
+    def test_list_products_filters_by_category(self, search) -> None:
+        search.return_value = {"hits": {"hits": []}}
 
-    @patch("services.elastic_client.get_elasticsearch_client")
-    def test_index_uses_product_id_as_document_id(self, get_client) -> None:
-        client = Mock()
-        get_client.return_value = client
-        product = {"product_id": "dress-1", "embedding": [0.0] * 1536}
+        results = list_products(category="dress", limit=10)
 
-        index_product(product)
-
-        client.index.assert_called_once_with(
+        self.assertEqual(results, [])
+        search.assert_called_once_with(
             index="products",
-            id="dress-1",
-            document=product,
+            query={"term": {"category": "dress"}},
+            size=10,
+            source_excludes=["semantic_text"],
         )
 
 
