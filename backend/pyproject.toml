@@ -9,3 +9,4 @@ dependencies = [
 	"pymongo>=4.11,<5",
 	"python-dotenv>=1,<2",
     "openai>=3.16.2",
+]
