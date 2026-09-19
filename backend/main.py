@@ -2,12 +2,14 @@ from collections.abc import Callable
 
 from fastapi import FastAPI, Response, status
 
+from routers.products import router as products_router
 from routers.recs import router as recs_router
 from services.elastic_client import elasticsearch_is_ready
 from services.mongo_client import mongo_is_ready
 
 app = FastAPI()
 app.include_router(recs_router)
+app.include_router(products_router)
 
 
 @app.get("/")
