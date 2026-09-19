@@ -1,7 +1,6 @@
 from rembg import remove, new_session
 
-# birefnet-general: better edge discrimination, handles same-color fg/bg well
-# Model cached to ~/.rembg/ after first download
+# birefnet-general have better edge discrimination, handles same-color fg/bg well
 _session = new_session("birefnet-general")
 
 
