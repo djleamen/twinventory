@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from services.embedding_service import embed_item
 from services.query_parser import parse_prompt
 from services.mongo_client import get_items
-from services.stub_store import search_products  # swap when index is ready
+from services.stub_store import search_products as _search  # swap: from services.elastic_client import search_products as _search
 
 router = APIRouter()
 
@@ -32,5 +32,5 @@ def query_recs(body: RecsQuery):
         n = len(embeddings[0])
         vector = [sum(e[i] for e in embeddings) / len(embeddings) for i in range(n)]
 
-    results = search_products(vector, k=10)
+    results = _search(query_vector=vector, query_text=expanded if body.prompt else None, limit=10)
     return {"results": results}

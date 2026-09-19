@@ -1,8 +1,5 @@
 import uuid
 
-# In-memory stand-in for MongoDB items collection + Elasticsearch.
-# Swap save_item/get_items for real pymongo calls once DJ's mongo_client lands.
-# Swap search_products for elastic_client.search() once that's ready.
 
 _items: dict[str, list[dict]] = {}
 
@@ -26,6 +23,11 @@ def get_items(user_id: str) -> list[dict]:
     return _items.get(user_id, [])
 
 
-def search_products(vector: list[float], filters: dict | None = None, k: int = 10) -> list[dict]:
-    # Contract matches elastic_client.search(vector, filters, k) → [{product_id, title, image_url, shop_url, price, score}]
-    return MOCK_PRODUCTS[:k]
+def search_products(
+    query_vector: list[float],
+    *,
+    query_text: str | None = None,
+    filters: dict[str, str] | None = None,
+    limit: int = 10,
+) -> list[dict]:
+    return MOCK_PRODUCTS[:limit]

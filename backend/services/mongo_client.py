@@ -1,31 +1,62 @@
 import os
 from datetime import datetime, timezone
+from functools import lru_cache
+from pathlib import Path
+from typing import Any
+
+from dotenv import load_dotenv
 from pymongo import MongoClient
+from pymongo.collection import Collection
+from pymongo.database import Database
 from pymongo.errors import PyMongoError
-from services.stub_store import save_item as _stub_save, get_items as _stub_get
+
+load_dotenv(Path(__file__).parents[2] / ".env")
+
+
+def _required_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+@lru_cache(maxsize=1)
+def get_mongo_client() -> MongoClient[dict[str, Any]]:
+    return MongoClient(_required_env("MONGODB_URI"), serverSelectionTimeoutMS=3000)
+
+
+def get_database() -> Database[dict[str, Any]]:
+    return get_mongo_client()[_required_env("MONGODB_DB")]
+
+
+def get_items_collection() -> Collection[dict[str, Any]]:
+    return get_database()["items"]
+
+
+def mongo_is_ready() -> bool:
+    get_mongo_client().admin.command("ping")
+    return True
+
 
 try:
-    _client = MongoClient(os.environ["MONGODB_URI"], serverSelectionTimeoutMS=3000)
-    _db = _client[os.environ["MONGODB_DB"]]
-    _db.command("ping")
-    _items = _db["items"]
+    get_mongo_client().admin.command("ping")
     _use_stub = False
-    print("[mongo] connected to Atlas")
-except PyMongoError as e:
+except PyMongoError:
     _use_stub = True
-    print(f"[mongo] Atlas unreachable ({e}), falling back to in-memory stub")
 
 
 def save_item(item: dict) -> str:
     if _use_stub:
+        from services.stub_store import save_item as _stub_save
         return _stub_save(item)
     item["created_at"] = datetime.now(timezone.utc)
-    result = _items.insert_one(item)
+    result = get_items_collection().insert_one(item)
     return str(result.inserted_id)
 
 
 def get_items(user_id: str) -> list[dict]:
     if _use_stub:
+        from services.stub_store import get_items as _stub_get
         return _stub_get(user_id)
-    docs = _items.find({"user_id": user_id}, {"_id": 0})
+    docs = get_items_collection().find({"user_id": user_id}, {"_id": 0})
     return list(docs)
