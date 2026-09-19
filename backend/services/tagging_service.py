@@ -11,7 +11,8 @@ class ItemTags(BaseModel):
     size: str      
 
 
-_client = OpenAI()  # reads OPENAI_API_KEY from env; load_dotenv() must be called before import
+_client = OpenAI()  
+
 
 _PROMPT = """You are a fashion tagging assistant. Analyze this clothing item image and return structured tags.
 
