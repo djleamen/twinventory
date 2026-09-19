@@ -8,9 +8,10 @@ dependencies = [
 	"browserbase>=1.2,<2",
 	"elasticsearch>=9,<10",
 	"fastapi>=0.116,<1",
-    "openai>=3.16.2",
 	"playwright>=1.47,<2",
+    "openai>=3.16.2",
 	"pymongo>=4.11,<5",
 	"python-dotenv>=1,<2",
+	"requests>=2.34.2",
 	"uvicorn[standard]>=0.35,<1",
 ]

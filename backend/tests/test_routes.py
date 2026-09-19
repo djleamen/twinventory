@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch
 
@@ -58,6 +59,22 @@ class HealthRouteTests(unittest.TestCase):
 
         self.assertEqual(result["elasticsearch"], "unavailable")
         self.assertEqual(response.status_code, 503)
+
+
+class CorsConfigurationTests(unittest.TestCase):
+    def test_frontend_origins_defaults_to_vite(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(main.frontend_origins(), ["http://localhost:5173"])
+
+    def test_frontend_origins_parses_comma_separated_values(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"FRONTEND_ORIGINS": "https://app.example.com, http://localhost:4173"},
+        ):
+            self.assertEqual(
+                main.frontend_origins(),
+                ["https://app.example.com", "http://localhost:4173"],
+            )
 
 
 if __name__ == "__main__":
