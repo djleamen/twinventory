@@ -1,11 +1,11 @@
+from fastapi import APIRouter
+from pydantic import BaseModel
 import logging
 import sys
 
-from fastapi import APIRouter
-
 from scripts.scrape_products import DEFAULT_MAX_PRODUCTS, scrape_product_data
 from services.elastic_client import Product, list_products, query_products
-
+from services.openai_client import combine_images
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -17,12 +17,38 @@ if not logger.handlers:
 router = APIRouter(prefix="/products", tags=["products"])
 
 
+
+
+class TryOnRequest(BaseModel):
+    image_urls: list[str]
+
+
+@router.get("/list")
+def list_products_route(category: str | None = None):
+    return list_products(category=category)
+
+
+@router.get("/search")
+def search_products_route(
+    query: str,
+    category: str | None = None,
+):
+    return query_products(
+        query=query,
+        category=category,
+    )
+
+
+@router.post("/try")
+def try_on_route(request: TryOnRequest):
+    image = combine_images(request.image_urls)
+    return {"image": image}
+
 @router.post("/scrape")
 def scrape_products(max_products: int = DEFAULT_MAX_PRODUCTS) -> dict[str, list[Product]]:
     logger.info("Received request to scrape products (max_products=%d)", max_products)
     products = scrape_product_data(max_products=max_products)
     logger.info("Scrape request complete: %d products", len(products))
-    print(f"Scrape request complete: {len(products)} products")
     return {"products": products}
 
 
