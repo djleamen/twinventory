@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import sentry_sdk
 from browserbase import Browserbase
 from playwright.sync_api import Page, sync_playwright
 
@@ -75,55 +76,67 @@ def _to_product(shop_url: str, shop_name: str, item: dict[str, Any]) -> Product 
 
 
 def _fetch_products_page(page: Page, shop_url: str, page_number: int) -> list[dict[str, Any]]:
-    url = f"{shop_url.rstrip('/')}/products.json?limit={PRODUCTS_PER_PAGE}&page={page_number}"
-    logger.info("Fetching %s", url)
-    response = page.goto(url)
-    if response is None:
-        logger.error("No response received for %s", url)
-        raise RuntimeError(f"No response received for {url}")
-    if not response.ok:
-        logger.error("Failed to fetch %s: HTTP %s", url, response.status)
-        raise RuntimeError(f"Failed to fetch {url}: HTTP {response.status}")
+    with sentry_sdk.start_span(op="http.client", name="shopify.products_json") as span:
+        span.set_data("shop.url", shop_url)
+        span.set_data("page.number", page_number)
 
-    items = response.json().get("products") or []
-    logger.info("Fetched %d products from %s (page %d)", len(items), shop_url, page_number)
-    return items
+        url = f"{shop_url.rstrip('/')}/products.json?limit={PRODUCTS_PER_PAGE}&page={page_number}"
+        logger.info("Fetching %s", url)
+        response = page.goto(url)
+        if response is None:
+            logger.error("No response received for %s", url)
+            raise RuntimeError(f"No response received for {url}")
+        if not response.ok:
+            logger.error("Failed to fetch %s: HTTP %s", url, response.status)
+            raise RuntimeError(f"Failed to fetch {url}: HTTP {response.status}")
+
+        items = response.json().get("products") or []
+        logger.info("Fetched %d products from %s (page %d)", len(items), shop_url, page_number)
+        span.set_data("page.items_count", len(items))
+        return items
 
 
 def scrape_shop(page: Page, shop_url: str, max_products: int) -> list[Product]:
-    shop_name = _shop_name(shop_url)
-    logger.info("Scraping shop: %s (max %d products)", shop_url, max_products)
-    products: list[Product] = []
-    page_number = 1
+    with sentry_sdk.start_span(
+        op="ingestion.scrape_shop", name=f"scrape_shop:{_shop_name(shop_url)}"
+    ) as span:
+        span.set_data("shop.url", shop_url)
+        span.set_data("shop.max_products", max_products)
 
-    while page_number <= MAX_PAGES and len(products) < max_products:
-        items = _fetch_products_page(page, shop_url, page_number)
-        if not items:
-            break
+        shop_name = _shop_name(shop_url)
+        logger.info("Scraping shop: %s (max %d products)", shop_url, max_products)
+        products: list[Product] = []
+        page_number = 1
 
-        products.extend(
-            product
-            for item in items
-            if (product := _to_product(shop_url, shop_name, item)) is not None
-        )
+        while page_number <= MAX_PAGES and len(products) < max_products:
+            items = _fetch_products_page(page, shop_url, page_number)
+            if not items:
+                break
 
-        if len(items) < PRODUCTS_PER_PAGE:
-            break
-        page_number += 1
-    else:
-        if len(products) >= max_products:
-            logger.info("Reached max_products cap of %d for %s", max_products, shop_url)
-        else:
-            logger.warning(
-                "Stopped at Shopify's %d-product /products.json limit for %s; "
-                "the shop may have more products than could be scraped",
-                MAX_PRODUCTS_JSON_RESULTS,
-                shop_url,
+            products.extend(
+                product
+                for item in items
+                if (product := _to_product(shop_url, shop_name, item)) is not None
             )
 
-    products = products[:max_products]
-    logger.info("Finished scraping %s: %d products", shop_url, len(products))
-    return products
+            if len(items) < PRODUCTS_PER_PAGE:
+                break
+            page_number += 1
+        else:
+            if len(products) >= max_products:
+                logger.info("Reached max_products cap of %d for %s", max_products, shop_url)
+            else:
+                logger.warning(
+                    "Stopped at Shopify's %d-product /products.json limit for %s; "
+                    "the shop may have more products than could be scraped",
+                    MAX_PRODUCTS_JSON_RESULTS,
+                    shop_url,
+                )
+
+        products = products[:max_products]
+        logger.info("Finished scraping %s: %d products", shop_url, len(products))
+        span.set_data("shop.products_scraped", len(products))
+        return products
 
 
 def scrape_product_data(
@@ -139,7 +152,9 @@ def scrape_product_data(
     )
 
     bb = Browserbase(api_key=_get_required_env("BROWSERBASE_API_KEY"))
-    session = bb.sessions.create(project_id=_get_required_env("BROWSERBASE_PROJECT_ID"))
+    with sentry_sdk.start_span(op="browserbase.create_session", name="browserbase.create_session") as span:
+        session = bb.sessions.create(project_id=_get_required_env("BROWSERBASE_PROJECT_ID"))
+        span.set_data("browserbase.session_id", session.id)
     logger.info("Created Browserbase session %s", session.id)
 
     playwright = sync_playwright().start()
@@ -170,5 +185,21 @@ def scrape_product_data(
     return all_products
 
 
+def _init_sentry_for_script() -> None:
+    import os
+
+    dsn = os.getenv("SENTRY_DSN")
+    if not dsn:
+        return
+    sentry_sdk.init(
+        dsn=dsn,
+        environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
+        enable_logs=True,
+    )
+
+
 if __name__ == "__main__":
-    scrape_product_data()
+    _init_sentry_for_script()
+    with sentry_sdk.start_transaction(op="ingestion", name="scrape_product_data"):
+        scrape_product_data()

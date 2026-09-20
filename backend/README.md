@@ -32,8 +32,15 @@ The API is available at `http://127.0.0.1:8000`, with interactive documentation 
 | `BROWSERBASE_API_KEY` | Browserbase key used by the product scraper |
 | `BROWSERBASE_PROJECT_ID` | Browserbase project used by the product scraper |
 | `FRONTEND_ORIGINS` | Comma-separated browser origins allowed by CORS; defaults to `http://localhost:5173` |
+| `SENTRY_DSN` | Sentry project DSN; when unset, Sentry is fully disabled and the app runs normally |
+| `SENTRY_ENVIRONMENT` | Sentry environment tag (e.g. `development`, `production`); defaults to `development` |
+| `SENTRY_TRACES_SAMPLE_RATE` | Fraction of requests traced (0.0-1.0); defaults to `1.0` |
 
+<<<<<<< HEAD
+An OpenAI key is currently required when the application starts, even when only product endpoints are used. Unlike the other variables above, Sentry is optional: the app boots and behaves identically with no `SENTRY_DSN` set.
+=======
 OpenAI credentials are loaded only when try-on is called. Browserbase credentials are loaded only when the scraper runs.
+>>>>>>> main
 
 ## Product schema
 
