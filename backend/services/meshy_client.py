@@ -1,3 +1,4 @@
+from functools import lru_cache
 import time
 
 import requests
@@ -5,10 +6,15 @@ import requests
 from utils import _get_required_env
 
 BASE_URL = "https://api.meshy.ai/openapi/v1/image-to-3d"
-API_KEY = _get_required_env("MESHY_API_KEY")
 
-session = requests.Session()
-session.headers.update({"Authorization": f"Bearer {API_KEY}"})
+
+@lru_cache(maxsize=1)
+def get_meshy_session() -> requests.Session:
+    session = requests.Session()
+    session.headers.update(
+        {"Authorization": f"Bearer {_get_required_env('MESHY_API_KEY')}"}
+    )
+    return session
 
 
 def get_3d_model(image_url: str) -> str:
@@ -21,7 +27,7 @@ def get_3d_model(image_url: str) -> str:
 
 def create_task(image_url: str) -> str:
     """Starts an image-to-3D task."""
-    response = session.post(
+    response = get_meshy_session().post(
         BASE_URL,
         json={
             "image_url": image_url,
@@ -37,7 +43,7 @@ def create_task(image_url: str) -> str:
 
 def get_task(task_id: str) -> dict:
     """Fetch a Meshy task by ID."""
-    response = session.get(f"{BASE_URL}/{task_id}", timeout=30)
+    response = get_meshy_session().get(f"{BASE_URL}/{task_id}", timeout=30)
     response.raise_for_status()
     return response.json()
 
