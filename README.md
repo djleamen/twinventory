@@ -1,6 +1,8 @@
 # twinventory
 
-Twinventory combines a user's photo with clothing discovered through semantic product search.
+<img width="2000" height="1000" alt="twinventory (2000x1000px)" src="https://github.com/user-attachments/assets/c9fd872e-4723-47cf-9de4-0c4269a67711" />
+
+Ever stood at your closet with nothing to wear, or bought something online that looked nothing like you expected? Twinventory fixes both- digitize your wardrobe, try clothes on yourself with AI, in 3D.
 
 Submitted to Hack the North 2026 for:
 
