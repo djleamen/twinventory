@@ -64,11 +64,17 @@ def _to_product(shop_url: str, shop_name: str, item: dict[str, Any]) -> Product 
         logger.debug("Skipping product %s from %s: missing price", item.get("id"), shop_url)
         return None
 
+    image_url = images[0].get("src", "")
+    parsed_image_url = urlparse(image_url)
+    if parsed_image_url.scheme not in {"http", "https"} or not parsed_image_url.netloc:
+        logger.debug("Skipping product %s from %s: invalid image URL", item.get("id"), shop_url)
+        return None
+
     return Product(
         id=f"{shop_name}-{item['id']}",
         title=item.get("title", ""),
         description=_strip_html(item.get("body_html", "")),
-        image=images[0].get("src", ""),
+        image=image_url,
         price=float(price),
         category=item.get("product_type") or "",
         url=f"{shop_url.rstrip('/')}/products/{handle}",
