@@ -26,9 +26,11 @@ The API is available at `http://127.0.0.1:8000`, with interactive documentation 
 | --- | --- |
 | `ELASTICSEARCH_URL` | Elastic Cloud endpoint containing the `products` index |
 | `ELASTICSEARCH_API_KEY` | Elastic API key |
-| `OPENAI_API_KEY` | OpenAI key used for try-on image generation |
+| `OPENAI_API_KEY` | OpenAI key used for try-on, inventory tagging, and item embeddings |
 | `MONGODB_URI` | MongoDB connection string used by the health check and inventory services |
 | `MONGODB_DB` | MongoDB database name |
+| `ELEVENLABS_API_KEY` | ElevenLabs key used by `POST /speech/transcribe` |
+| `MESHY_API_KEY` | Meshy client credential |
 | `BROWSERBASE_API_KEY` | Browserbase key used by the product scraper |
 | `BROWSERBASE_PROJECT_ID` | Browserbase project used by the product scraper |
 | `FRONTEND_ORIGINS` | Comma-separated browser origins allowed by CORS; defaults to `http://localhost:5173` |
@@ -36,8 +38,7 @@ The API is available at `http://127.0.0.1:8000`, with interactive documentation 
 | `SENTRY_ENVIRONMENT` | Sentry environment tag (e.g. `development`, `production`); defaults to `development` |
 | `SENTRY_TRACES_SAMPLE_RATE` | Fraction of requests traced (0.0-1.0); defaults to `1.0` |
 
-OpenAI credentials are loaded only when try-on is called. Browserbase credentials are loaded only when the scraper runs.
-Sentry is optional: the app boots normally when `SENTRY_DSN` is unset.
+MongoDB, Elasticsearch, and OpenAI credentials are required by the current application. ElevenLabs powers voice transcription, Browserbase powers product scraping, and Meshy credentials are loaded by Meshy API calls. Setting `SENTRY_DSN` enables Sentry monitoring.
 
 ## Product schema
 
@@ -104,6 +105,27 @@ Response:
 
 At least two image URLs are required: the user's image and one selected product.
 
+### User profiles
+
+- `GET /users/{username}` returns `username`, `image_url`, and `preferences`.
+- `PATCH /users/{username}/preferences` accepts `{"preferences": "..."}`.
+
+Profile records are stored in MongoDB's `users` collection.
+
+### Inventory
+
+- `POST /inventory/upload?user_id=...` accepts multipart field `file`, removes its background, tags and embeds it, stores metadata in MongoDB, and writes the cutout under `/static`.
+- `GET /inventory/{user_id}` returns that user's stored items.
+
+Attach persistent storage at `/app/uploads` to retain uploaded files across Railway deployments.
+
+### Voice and 3D
+
+- `POST /speech/transcribe` accepts multipart field `audio` and returns `{"text": "..."}`.
+- `POST /models/convert` accepts `{"image_url": "..."}` and returns `{"model_url": "..."}`.
+
+The 3D route returns a GLB model URL for the frontend model viewer.
+
 ## Product ingestion
 
 Configure shops in `backend/config.json`, then run the scraper from the repository root:
@@ -120,11 +142,13 @@ To create or verify MongoDB and Elasticsearch infrastructure:
 .venv-local/bin/python backend/scripts/bootstrap_data_infra.py
 ```
 
+After bootstrapping, add a MongoDB `users` document matching `frontend/src/lib/api/users.ts` and run the product scraper to populate Elasticsearch.
+
 See [../docs/api-contract.md](../docs/api-contract.md) for the complete integration contract.
 
 ## Tests
 
-The tests use inert credentials and mock all external calls.
+The tests use inert credentials and mock external calls.
 
 ```bash
 PYTHONPATH=backend .venv-local/bin/python -m unittest discover -s backend/tests -v

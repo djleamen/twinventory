@@ -1,6 +1,6 @@
-## **Twinventory / miirror.tech Architecture**![][image1]
+# Twinventory Hackathon Architecture Plan
 
-> **Current backend contract:** product browsing and search use `GET /products` and `GET /products/search?q=...`; image try-on uses `POST /products/try`. Products use `{id, title, description, image, price, category, url}`. See [`api-contract.md`](api-contract.md) and [`status.md`](status.md); they supersede stale implementation details in this original plan.
+> Current implemented interfaces are documented in [`api-contract.md`](api-contract.md), current feature status in [`status.md`](status.md), and the MVP flow in the root [`README.md`](../README.md#mvp).
 
 **Three flows, that's the whole app:**
 

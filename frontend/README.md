@@ -6,7 +6,7 @@ Next.js (App Router) + TypeScript + shadcn/ui + TanStack Query.
 
 ```bash
 npm install
-cp .env.example .env.local
+printf 'NEXT_PUBLIC_API_URL=http://127.0.0.1:8000\n' > .env.local
 npm run dev          # http://localhost:5173 (matches the backend's default CORS origin)
 ```
 
@@ -21,9 +21,12 @@ Everything goes through `src/lib/api/`:
 | Profile, preferences | `GET /users/{username}`, `PATCH /users/{username}/preferences` |
 | Product list / search | `GET /products`, `GET /products/search?q=...` |
 | Try on | `POST /products/try` (user image first, then product images) |
+| Voice search | `POST /speech/transcribe` |
+| Demo 3D preview | `POST /models/convert` |
 
 The "Who's shopping?" screen shows the usernames listed in `USERNAMES` in
-`src/lib/api/users.ts`. Keep it in sync with the backend's `users.json`.
+`src/lib/api/users.ts`. Each username must have a matching document in MongoDB's
+`users` collection with `username`, `image_url`, and `preferences` fields.
 
 ## Where things live
 

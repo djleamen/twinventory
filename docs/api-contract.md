@@ -75,9 +75,54 @@ DJ owns the Elasticsearch boundary. `insert_products()` uses stable IDs for nati
 
 Product scraping is a one-off script, not a public API endpoint.
 
-## Inventory integration
+## User API
 
-MongoDB uses database `twinventory` and collection `items`. The inventory upload/read API is not yet on `main`; `origin/personb` contains a candidate implementation that must be adapted rather than merged wholesale.
+### `GET /users/{username}`
+
+Returns an existing profile:
+
+```json
+{
+  "username": "steve",
+  "image_url": "https://example.com/steve.jpg",
+  "preferences": "Jeans, muted clothing"
+}
+```
+
+Returns `404` when the profile does not exist.
+
+### `PATCH /users/{username}/preferences`
+
+Accepts `{"preferences": "..."}`, updates the existing profile, and returns the updated profile. Returns `404` when the profile does not exist.
+
+Profiles are provisioned in MongoDB's `users` collection.
+
+## Inventory API
+
+MongoDB uses the configured `MONGODB_DB` database and the `items` collection.
+
+### `POST /inventory/upload`
+
+Requires query parameter `user_id` and multipart field `file`. The service removes the background, generates tags and an embedding, stores the item in MongoDB, and writes a PNG cutout under `/static`.
+
+Response:
+
+```json
+{
+  "item_id": "mongo-object-id",
+  "tags": {
+    "category": "shirt",
+    "color": "white",
+    "style": "casual",
+    "size": "M"
+  },
+  "image_url": "/static/generated-id.png"
+}
+```
+
+### `GET /inventory/{user_id}`
+
+Returns `{"user_id": "...", "items": [...]}`. Stored items use this shape:
 
 The intended inventory shape is:
 
@@ -94,8 +139,26 @@ The intended inventory shape is:
 }
 ```
 
-Before integration, Person B must use `MONGODB_URI`, reuse `services.mongo_client.get_items_collection()`, remove the in-memory product recommendation stub, and add route/service tests.
+Uploaded files are served from `/static`; production deployments persist that directory at `/app/uploads`.
+
+## Speech API
+
+### `POST /speech/transcribe`
+
+Accepts multipart field `audio` and returns `{"text": "..."}`. An empty upload returns `400`.
+
+## 3D model API
+
+### `POST /models/convert`
+
+Accepts `{"image_url": "..."}` and returns `{"model_url": "..."}` for the frontend model viewer.
 
 ## Health API
 
-`GET /health` checks MongoDB and Elasticsearch. It returns HTTP 200 when both are reachable and HTTP 503 when either is unavailable. OpenAI and Browserbase are intentionally excluded because they are only needed by specific operations.
+`GET /health` checks MongoDB and Elasticsearch. It returns HTTP 200 when both are reachable and HTTP 503 when either is unavailable.
+
+`GET /` returns a basic API status message. `GET /sentry-debug` raises a test exception for Sentry verification.
+
+## MVP boundary
+
+The MVP flow is seeded profile → product browse/search → outfit selection → try-on → source-store link. Voice transcription supplies search text. Profile preferences, inventory upload and retrieval, and 3D model previews are also available through the API.
