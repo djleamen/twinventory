@@ -8,7 +8,7 @@ import type { Product, User } from "@/lib/types"
 
 export const keys = {
   users: ["users"] as const,
-  user: (id: string) => ["users", id] as const,
+  user: (username: string) => ["users", username] as const,
   products: (query: string, category?: string) => ["products", query, category ?? null] as const,
 }
 
@@ -16,16 +16,16 @@ export function useUsers() {
   return useQuery({ queryKey: keys.users, queryFn: getUsers })
 }
 
-export function useUser(id: string) {
-  return useQuery({ queryKey: keys.user(id), queryFn: () => getUser(id) })
+export function useUser(username: string) {
+  return useQuery({ queryKey: keys.user(username), queryFn: () => getUser(username), retry: false })
 }
 
-export function useUpdatePreferences(id: string) {
+export function useUpdatePreferences(username: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (preferences: string) => updatePreferences(id, preferences),
+    mutationFn: (preferences: string) => updatePreferences(username, preferences),
     onSuccess: (user: User) => {
-      qc.setQueryData(keys.user(id), user)
+      qc.setQueryData(keys.user(username), user)
       qc.invalidateQueries({ queryKey: keys.users })
     },
   })

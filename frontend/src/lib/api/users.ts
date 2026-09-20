@@ -1,33 +1,32 @@
-/**
- * MOCK user service. The backend has no user endpoints yet.
- * Replace each function body with an apiFetch call when these exist:
- *   GET   /users              -> User[]
- *   GET   /users/{id}         -> User
- *   PATCH /users/{id}         -> User   body: { preferences }
- */
 import type { User } from "@/lib/types"
-import { sleep } from "./client"
-import { MOCK_USERS } from "@/lib/mock/users"
+import { apiFetch } from "./client"
 
-const users = new Map<string, User>(MOCK_USERS.map((u) => [u.id, { ...u }]))
+/**
+ * Usernames shown on the "Who's shopping?" screen.
+ * Must match the usernames in the backend's users.json.
+ */
+export const USERNAMES = ["steve"]
 
+/** GET /users/{username} */
+export function getUser(username: string): Promise<User> {
+  return apiFetch<User>(`/users/${encodeURIComponent(username)}`)
+}
+
+/** Fetches every user in USERNAMES, skipping any that don't exist. */
 export async function getUsers(): Promise<User[]> {
-  await sleep(150)
-  return [...users.values()]
+  const results = await Promise.allSettled(USERNAMES.map(getUser))
+  const users = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []))
+  if (!users.length) {
+    const failed = results.find((r) => r.status === "rejected")
+    if (failed?.status === "rejected") throw failed.reason
+  }
+  return users
 }
 
-export async function getUser(id: string): Promise<User> {
-  await sleep(150)
-  const user = users.get(id)
-  if (!user) throw new Error(`No user with id "${id}"`)
-  return { ...user }
-}
-
-export async function updatePreferences(id: string, preferences: string): Promise<User> {
-  await sleep(200)
-  const user = users.get(id)
-  if (!user) throw new Error(`No user with id "${id}"`)
-  const next = { ...user, preferences }
-  users.set(id, next)
-  return { ...next }
+/** PATCH /users/{username}/preferences */
+export function updatePreferences(username: string, preferences: string): Promise<User> {
+  return apiFetch<User>(`/users/${encodeURIComponent(username)}/preferences`, {
+    method: "PATCH",
+    body: JSON.stringify({ preferences }),
+  })
 }

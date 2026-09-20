@@ -45,9 +45,9 @@ export function Header({ user }: { user?: User }) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-44">
             {users
-              ?.filter((u) => u.id !== user.id)
+              ?.filter((u) => u.username !== user.username)
               .map((u) => (
-                <DropdownMenuItem key={u.id} onClick={() => router.push(`/u/${u.id}`)}>
+                <DropdownMenuItem key={u.username} onClick={() => router.push(`/u/${encodeURIComponent(u.username)}`)}>
                   <UserAvatar user={u} size={24} />
                   Switch to {u.username}
                 </DropdownMenuItem>

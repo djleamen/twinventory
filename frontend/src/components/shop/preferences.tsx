@@ -10,7 +10,7 @@ import type { User } from "@/lib/types"
 export function Preferences({ user }: { user: User }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(user.preferences)
-  const save = useUpdatePreferences(user.id)
+  const save = useUpdatePreferences(user.username)
 
   function onSave() {
     save.mutate(draft.trim(), {

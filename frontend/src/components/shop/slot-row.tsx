@@ -17,7 +17,7 @@ export function SlotRow({ outfit, activeSlot, onSelect, onRemove }: Props) {
       <h2 id="outfit-heading" className="text-sm font-medium text-muted-foreground">
         Your outfit. Pick a slot to browse it, then add an item.
       </h2>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 2xl:grid-cols-6">
         {SLOTS.map((slot) => {
           const item = outfit[slot.id]
           const active = activeSlot === slot.id

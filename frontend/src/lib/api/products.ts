@@ -1,6 +1,5 @@
 import type { Product, TryOnResponse } from "@/lib/types"
-import { apiFetch, MOCK_PRODUCTS, sleep } from "./client"
-import { MOCK_PRODUCT_LIST, MOCK_TRY_ON_IMAGE } from "@/lib/mock/products"
+import { apiFetch } from "./client"
 
 function qs(params: Record<string, string | undefined>) {
   const sp = new URLSearchParams()
@@ -9,35 +8,29 @@ function qs(params: Record<string, string | undefined>) {
   return s ? `?${s}` : ""
 }
 
+/** Accepts a plain array, or an object wrapping one (e.g. { products: [...] }). */
+function toProducts(data: unknown): Product[] {
+  if (Array.isArray(data)) return data
+  if (data && typeof data === "object") {
+    const list = Object.values(data).find(Array.isArray)
+    if (list) return list as Product[]
+  }
+  console.error("Unexpected products response:", data)
+  throw new Error("The products response wasn't a list. Check the browser console for what came back.")
+}
+
 /** GET /products/list — up to 20 products, optional exact category filter. */
 export async function listProducts(category?: string): Promise<Product[]> {
-  if (MOCK_PRODUCTS) {
-    await sleep(300)
-    return MOCK_PRODUCT_LIST.filter((p) => !category || p.category === category).slice(0, 20)
-  }
-  return apiFetch<Product[]>(`/products/list${qs({ category })}`)
+  return toProducts(await apiFetch<unknown>(`/products/list${qs({ category })}`))
 }
 
 /** GET /products/search — semantic search, optional exact category filter. */
 export async function searchProducts(query: string, category?: string): Promise<Product[]> {
-  if (MOCK_PRODUCTS) {
-    await sleep(400)
-    const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-    return MOCK_PRODUCT_LIST.filter(
-      (p) =>
-        (!category || p.category === category) &&
-        words.some((w) => `${p.title} ${p.description} ${p.category}`.toLowerCase().includes(w)),
-    ).slice(0, 20)
-  }
-  return apiFetch<Product[]>(`/products/search${qs({ query, category })}`)
+  return toProducts(await apiFetch<unknown>(`/products/search${qs({ query, category })}`))
 }
 
 /** POST /products/try — user image first, then the product images. */
-export async function tryOn(imageUrls: string[]): Promise<TryOnResponse> {
-  if (MOCK_PRODUCTS) {
-    await sleep(2000)
-    return { image: MOCK_TRY_ON_IMAGE }
-  }
+export function tryOn(imageUrls: string[]): Promise<TryOnResponse> {
   return apiFetch<TryOnResponse>("/products/try", {
     method: "POST",
     body: JSON.stringify({ image_urls: imageUrls }),

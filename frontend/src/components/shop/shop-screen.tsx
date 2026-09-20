@@ -15,7 +15,6 @@ import { CategoryChips } from "./category-chips"
 import { ProductGrid } from "./product-grid"
 import { useProducts, useTryOn, useUser } from "@/hooks/queries"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
-import { MOCK_PRODUCTS } from "@/lib/api/client"
 import {
   ALL_CATEGORIES,
   SLOTS,
@@ -28,8 +27,8 @@ import {
 } from "@/lib/slots"
 import type { Product } from "@/lib/types"
 
-export function ShopScreen({ userId }: { userId: string }) {
-  const { data: user, isLoading: userLoading, error: userError } = useUser(userId)
+export function ShopScreen({ username }: { username: string }) {
+  const { data: user, isLoading: userLoading, error: userError } = useUser(username)
 
   const [search, setSearch] = useState("")
   const query = useDebouncedValue(search.trim())
@@ -46,7 +45,7 @@ export function ShopScreen({ userId }: { userId: string }) {
   const tryOn = useTryOn()
 
   const items = useMemo(() => outfitItems(outfit), [outfit])
-  const hasPhoto = !!user?.image_url || MOCK_PRODUCTS
+  const hasPhoto = !!user?.image_url
 
   function selectSlot(id: SlotId | null) {
     setActiveSlot(id)
@@ -76,7 +75,9 @@ export function ShopScreen({ userId }: { userId: string }) {
       <>
         <Header />
         <main className="mx-auto max-w-xl flex-1 px-5 py-16">
-          <p className="text-lg">{userError.message}</p>
+          <p className="text-lg">
+            {userError.message === "User not found" ? `There's no user called "${username}".` : userError.message}
+          </p>
           <Link href="/" className="mt-4 inline-block font-medium text-primary underline-offset-4 hover:underline">
             Choose a profile
           </Link>
@@ -108,7 +109,7 @@ export function ShopScreen({ userId }: { userId: string }) {
                 onToggleResult={() => setShowResult((v) => !v)}
                 isGenerating={tryOn.isPending}
               />
-              <Preferences key={user.id} user={user} />
+              <Preferences key={user.username} user={user} />
             </>
           )}
         </aside>
