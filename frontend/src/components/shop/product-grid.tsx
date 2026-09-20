@@ -1,6 +1,6 @@
 "use client"
 
-import { ExternalLinkIcon } from "lucide-react"
+import { ExternalLinkIcon, LoaderCircleIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Product } from "@/lib/types"
@@ -47,49 +47,62 @@ export function ProductGrid({ products, isLoading, error, onRetry, isSelected, o
     )
 
   return (
-    <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-4">
-      {products.map((p) => {
-        const selected = isSelected(p)
-        return (
-          <li
-            key={p.id}
-            className={cn(
-              "flex flex-col overflow-hidden rounded-xl border bg-card",
-              selected ? "border-primary ring-1 ring-primary" : "border-border",
-            )}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.image} alt={p.title} loading="lazy" className="aspect-square w-full bg-secondary object-cover" />
-            <div className="flex flex-1 flex-col gap-1 p-3">
-              <p className="text-xs text-muted-foreground">{p.category}</p>
-              <h3 className="line-clamp-2 text-sm leading-snug font-medium">{p.title}</h3>
-              <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-                <span className="text-sm font-medium">{price.format(p.price)}</span>
-                <div className="flex items-center gap-1">
-                  <a
-                    href={p.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`View ${p.title} in store`}
-                    className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    <ExternalLinkIcon className="size-4" />
-                  </a>
-                  <Button
-                    size="sm"
-                    variant={selected ? "default" : "outline"}
-                    aria-pressed={selected}
-                    onClick={() => onToggle(p)}
-                    className={cn("min-w-16", !selected && "border-primary text-primary hover:text-primary")}
-                  >
-                    {selected ? "Added" : "Add"}
-                  </Button>
+    <div className="relative">
+      {isLoading && (
+        <div className="absolute top-0 right-0 z-10 flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+          <LoaderCircleIcon className="size-3.5 animate-spin" aria-hidden="true" />
+          Searching…
+        </div>
+      )}
+      <ul
+        className={cn(
+          "grid grid-cols-2 gap-4 transition-opacity md:grid-cols-3 2xl:grid-cols-4",
+          isLoading && "opacity-60",
+        )}
+      >
+        {products.map((p) => {
+          const selected = isSelected(p)
+          return (
+            <li
+              key={p.id}
+              className={cn(
+                "flex flex-col overflow-hidden rounded-xl border bg-card",
+                selected ? "border-primary ring-1 ring-primary" : "border-border",
+              )}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.image} alt={p.title} loading="lazy" className="aspect-square w-full bg-secondary object-cover" />
+              <div className="flex flex-1 flex-col gap-1 p-3">
+                <p className="text-xs text-muted-foreground">{p.category}</p>
+                <h3 className="line-clamp-2 text-sm leading-snug font-medium">{p.title}</h3>
+                <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+                  <span className="text-sm font-medium">{price.format(p.price)}</span>
+                  <div className="flex items-center gap-1">
+                    <a
+                      href={p.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`View ${p.title} in store`}
+                      className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                      <ExternalLinkIcon className="size-4" />
+                    </a>
+                    <Button
+                      size="sm"
+                      variant={selected ? "default" : "outline"}
+                      aria-pressed={selected}
+                      onClick={() => onToggle(p)}
+                      className={cn("min-w-16", !selected && "border-primary text-primary hover:text-primary")}
+                    >
+                      {selected ? "Added" : "Add"}
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </li>
-        )
-      })}
-    </ul>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
