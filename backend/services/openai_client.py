@@ -2,6 +2,8 @@ from functools import lru_cache
 
 from openai import OpenAI
 
+from utils import resolve_image_url
+
 
 @lru_cache(maxsize=1)
 def get_openai_client() -> OpenAI:
@@ -21,7 +23,7 @@ def combine_images(image_urls: list[str]) -> str | None:
     input_images: list = [
         {
             "type": "input_image",
-            "image_url": image_url,
+            "image_url": resolve_image_url(image_url),
             "detail": "auto",
         }
         for image_url in image_urls

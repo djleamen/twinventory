@@ -11,12 +11,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useUsers } from "@/hooks/queries"
+import { toApiUrl } from "@/lib/api/client"
 import type { User } from "@/lib/types"
 
 export function UserAvatar({ user, size = 36 }: { user: User; size?: number }) {
   return user.image_url ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={user.image_url} alt="" width={size} height={size} className="rounded-full object-cover" style={{ width: size, height: size }} />
+    <img src={toApiUrl(user.image_url)} alt="" width={size} height={size} className="rounded-full object-cover" style={{ width: size, height: size }} />
   ) : (
     <span
       className="flex items-center justify-center rounded-full bg-accent font-semibold text-accent-foreground uppercase"

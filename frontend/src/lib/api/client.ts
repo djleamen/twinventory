@@ -1,5 +1,10 @@
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "")
 
+/** Local uploads come back as /static/... paths — point them at the API host. */
+export function toApiUrl(url: string): string {
+  return url.startsWith("/") ? `${API_URL}${url}` : url
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message)

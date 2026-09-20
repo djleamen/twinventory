@@ -21,13 +21,15 @@ function toProxiedUrl(url: string): string {
 type Props = {
   /** Public image URL or data URI of the image to turn into a model. */
   imageUrl: string
+  /** Try-on outfit cache key, so the same outfit reuses its 3D model. */
+  cacheKey?: string | null
   title: string
 }
 
 /** A "View in 3D" button for the bottom-right corner of an image, plus the dialog it opens. */
-export function ModelViewButton({ imageUrl, title }: Props) {
+export function ModelViewButton({ imageUrl, cacheKey, title }: Props) {
   const [open, setOpen] = useState(false)
-  const model = useModel(imageUrl, open)
+  const model = useModel(imageUrl, open, cacheKey)
 
   // model-viewer is a browser-only web component, so load it on the client.
   useEffect(() => {

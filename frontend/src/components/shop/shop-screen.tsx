@@ -34,7 +34,7 @@ export function ShopScreen({ username }: { username: string }) {
   const [activeSlot, setActiveSlot] = useState<SlotId | null>(null)
   const [category, setCategory] = useState<string | null>(null)
   const [outfit, setOutfit] = useState<Outfit>({})
-  const [result, setResult] = useState<{ image: string; items: Product[] } | null>(null)
+  const [result, setResult] = useState<{ image: string; items: Product[]; cacheKey: string | null } | null>(null)
   const [showResult, setShowResult] = useState(true)
 
   const slot = SLOTS.find((s) => s.id === activeSlot)
@@ -62,7 +62,7 @@ export function ShopScreen({ username }: { username: string }) {
     const selected = items
     tryOn.mutate([user.image_url, ...selected.map((p) => p.image)], {
       onSuccess: (res) => {
-        setResult({ image: `data:image/png;base64,${res.image}`, items: selected })
+        setResult({ image: `data:image/png;base64,${res.image}`, items: selected, cacheKey: res.cache_key })
         setShowResult(true)
       },
       onError: (e) => toast.error(`Try-on failed: ${e.message}`),
@@ -104,6 +104,7 @@ export function ShopScreen({ username }: { username: string }) {
                 user={user}
                 result={result?.image ?? null}
                 resultItems={result?.items ?? []}
+                resultCacheKey={result?.cacheKey ?? null}
                 showResult={showResult}
                 onToggleResult={() => setShowResult((v) => !v)}
                 isGenerating={tryOn.isPending}

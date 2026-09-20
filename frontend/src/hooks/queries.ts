@@ -4,6 +4,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import { listProducts, searchProducts, tryOn } from "@/lib/api/products"
 import { getUser, getUsers, updatePreferences } from "@/lib/api/users"
 import { convertToModel } from "@/lib/api/models"
+import { createEphemeralUser, getEphemeralUser, saveEphemeralUser } from "@/lib/ephemeral-user"
 import { HIDDEN_CATEGORIES } from "@/lib/slots"
 import type { Product, User } from "@/lib/types"
 
@@ -14,19 +15,52 @@ export const keys = {
 }
 
 export function useUsers() {
-  return useQuery({ queryKey: keys.users, queryFn: getUsers })
+  return useQuery({
+    queryKey: keys.users,
+    queryFn: async () => {
+      const users = await getUsers()
+      const ephemeral = getEphemeralUser()
+      return ephemeral ? [...users.filter((u) => u.username !== ephemeral.username), ephemeral] : users
+    },
+  })
 }
 
 export function useUser(username: string) {
-  return useQuery({ queryKey: keys.user(username), queryFn: () => getUser(username), retry: false })
+  return useQuery({
+    queryKey: keys.user(username),
+    queryFn: () => {
+      const ephemeral = getEphemeralUser()
+      return ephemeral?.username === username ? ephemeral : getUser(username)
+    },
+    retry: false,
+  })
 }
 
 export function useUpdatePreferences(username: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (preferences: string) => updatePreferences(username, preferences),
+    mutationFn: async (preferences: string) => {
+      const ephemeral = getEphemeralUser()
+      if (ephemeral?.username === username) {
+        const updated = { ...ephemeral, preferences }
+        saveEphemeralUser(updated)
+        return updated
+      }
+      return updatePreferences(username, preferences)
+    },
     onSuccess: (user: User) => {
       qc.setQueryData(keys.user(username), user)
+      qc.invalidateQueries({ queryKey: keys.users })
+    },
+  })
+}
+
+export function useCreateUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ username, photo }: { username: string; photo: File }) => createEphemeralUser(username, photo),
+    onSuccess: (user: User) => {
+      qc.setQueryData(keys.user(user.username), user)
       qc.invalidateQueries({ queryKey: keys.users })
     },
   })
@@ -73,17 +107,50 @@ export function useTryOn() {
   })
 }
 
+const MODEL_CACHE_TTL = 30 * 60 * 1000 // Meshy links expire, so don't keep them forever
+
+function readCachedModel(storageKey: string): { model_url: string } | null {
+  if (storageKey.startsWith("data:")) return null // ephemeral content is never persisted
+  try {
+    const raw = localStorage.getItem(`model:${storageKey}`)
+    if (!raw) return null
+    const { model_url, ts } = JSON.parse(raw)
+    return Date.now() - ts < MODEL_CACHE_TTL ? { model_url } : null
+  } catch {
+    return null
+  }
+}
+
+function writeCachedModel(storageKey: string, modelUrl: string) {
+  if (storageKey.startsWith("data:")) return // ephemeral content is never persisted
+  try {
+    localStorage.setItem(`model:${storageKey}`, JSON.stringify({ model_url: modelUrl, ts: Date.now() }))
+  } catch {
+    // storage full or unavailable — cache is best-effort
+  }
+}
+
 /**
- * Converts an image to a 3D model once per image, then reuses the result.
+ * Converts an image to a 3D model once per image — or once per outfit when a
+ * try-on cache key is provided — then reuses the result. Cached in localStorage
+ * so refreshes don't wait for regeneration. Ephemeral (data URI) content without
+ * a cache key is never persisted anywhere.
  * Only runs while `enabled` is true (i.e. the 3D dialog is open).
  */
-export function useModel(imageUrl: string, enabled: boolean) {
+export function useModel(imageUrl: string, enabled: boolean, cacheKey?: string | null) {
+  const storageKey = cacheKey ? `tryon:${cacheKey}` : imageUrl
   return useQuery({
-    queryKey: ["model", imageUrl],
-    queryFn: () => convertToModel(imageUrl),
+    queryKey: ["model", storageKey],
+    queryFn: async () => {
+      const cached = readCachedModel(storageKey)
+      if (cached) return cached
+      const result = await convertToModel(imageUrl, cacheKey)
+      writeCachedModel(storageKey, result.model_url)
+      return result
+    },
     enabled,
-    staleTime: 30 * 60 * 1000, // Meshy links expire, so don't keep them forever
-    gcTime: 30 * 60 * 1000,
+    staleTime: MODEL_CACHE_TTL,
+    gcTime: MODEL_CACHE_TTL,
     retry: false,
   })
 }

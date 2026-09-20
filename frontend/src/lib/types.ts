@@ -19,4 +19,6 @@ export type User = {
 export type TryOnResponse = {
   /** base64-encoded image, no data: prefix */
   image: string
+  /** Outfit cache key for reusing the 3D model; null for ephemeral (uploaded) profiles. */
+  cache_key: string | null
 }
