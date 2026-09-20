@@ -1,6 +1,6 @@
 ## **Twinventory / miirror.tech Architecture**![][image1]
 
-> **Current backend contract:** product browsing and search use `GET /products/list` and `GET /products/search`; image try-on uses `POST /products/try`. Products use `{id, title, description, image, price, category, url}`. This supersedes the original vector-based `/recs/query` notes below.
+> **Current backend contract:** product browsing and search use `GET /products` and `GET /products/search?q=...`; image try-on uses `POST /products/try`. Products use `{id, title, description, image, price, category, url}`. See [`api-contract.md`](api-contract.md) and [`status.md`](status.md); they supersede stale implementation details in this original plan.
 
 **Three flows, that's the whole app:**
 

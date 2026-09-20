@@ -11,3 +11,5 @@ The current backend supports:
 
 See [backend/README.md](backend/README.md) for setup and the API contract. The original hackathon architecture and ownership plan is in [docs/planning.md](docs/planning.md).
 
+Current integration status and ownership are tracked in [docs/status.md](docs/status.md).
+

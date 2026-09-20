@@ -5,14 +5,22 @@ import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.integrations.openai import OpenAIIntegration
 
-from collections.abc import Callable  # noqa: E402
+from collections.abc import Callable  
 
-from fastapi import FastAPI, Response, status  # noqa: E402
-from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from pathlib import Path
 
-from routers.products import router as products_router  # noqa: E402
-from services.elastic_client import elasticsearch_is_ready  # noqa: E402
-from services.mongo_client import mongo_is_ready  # noqa: E402
+from fastapi import FastAPI, Response, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+
+from routers import inventory
+from routers.products import router as products_router
+from routers.users import router as users_router
+from services.elastic_client import elasticsearch_is_ready
+from services.mongo_client import mongo_is_ready
+
+load_dotenv(Path(__file__).parent / ".env")
 
 def _init_sentry() -> None:
     dsn = os.getenv("SENTRY_DSN")
@@ -37,6 +45,10 @@ def _init_sentry() -> None:
 
 _init_sentry()
 
+UPLOADS_DIR = Path(__file__).parent / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
+
+
 def frontend_origins() -> list[str]:
     return [
         origin.strip()
@@ -45,14 +57,18 @@ def frontend_origins() -> list[str]:
     ]
 
 
-app = FastAPI()
+app = FastAPI(title="twinventory API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=frontend_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/static", StaticFiles(directory=str(UPLOADS_DIR)), name="static")
+app.include_router(inventory.router, prefix="/inventory", tags=["inventory"])
 app.include_router(products_router)
+app.include_router(users_router)
 
 
 @app.get("/")

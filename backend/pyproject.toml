@@ -12,7 +12,15 @@ dependencies = [
 	"openai>=3.16.2",
 	"pymongo>=4.11,<5",
 	"python-dotenv>=1,<2",
+	"python-multipart",
+	"rembg[cpu]",
 	"requests>=2.34.2",
 	"uvicorn[standard]>=0.35,<1",
 	"sentry-sdk[fastapi,openai]>=2.60,<3",
 ]
+
+[tool.setuptools]
+py-modules = ["main", "utils"]
+
+[tool.setuptools.packages.find]
+include = ["routers*", "services*"]

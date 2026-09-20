@@ -34,6 +34,12 @@ class ElasticClientTests(unittest.TestCase):
             "Blue Dress\n\nFormal summer dress",
         )
 
+    @patch("services.elastic_client.bulk")
+    def test_insert_products_skips_empty_batches(self, bulk) -> None:
+        insert_products([])
+
+        bulk.assert_not_called()
+
     @patch("services.elastic_client.client.search")
     def test_query_products_builds_semantic_search(self, search) -> None:
         search.return_value = {

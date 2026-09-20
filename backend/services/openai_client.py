@@ -1,10 +1,22 @@
+from functools import lru_cache
+
 from openai import OpenAI
 
-client = OpenAI()
+
+@lru_cache(maxsize=1)
+def get_openai_client() -> OpenAI:
+    return OpenAI()
 
 
-def combine_images(image_urls: list[str]):
-    """Returns a base64 encoded result image."""
+TRY_ON_PROMPT = (
+    "The first image is a person. Dress that exact person in the clothing items "
+    "shown in the other images. Keep the person's face, hair, pose, and body "
+    "identical to the first image. Use a plain, pure white background."
+)
+
+
+def combine_images(image_urls: list[str]) -> str | None:
+    """Returns a base64 encoded result image, or None if the model refused."""
 
     input_images: list = [
         {
@@ -15,7 +27,7 @@ def combine_images(image_urls: list[str]):
         for image_url in image_urls
     ]
 
-    response = client.responses.create(
+    response = get_openai_client().responses.create(
         model="gpt-5.6-luna",
         tools=[
             {
@@ -30,7 +42,7 @@ def combine_images(image_urls: list[str]):
                 "content": [
                     {
                         "type": "input_text",
-                        "text": "Combine these images.",
+                        "text": TRY_ON_PROMPT,
                     },
                     *input_images,
                 ],
@@ -39,6 +51,7 @@ def combine_images(image_urls: list[str]):
     )
 
     image_result = next(
-        output for output in response.output if output.type == "image_generation_call"
+        (output for output in response.output if output.type == "image_generation_call"),
+        None,
     )
-    return image_result.result
+    return image_result.result if image_result else None

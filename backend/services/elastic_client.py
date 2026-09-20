@@ -37,6 +37,7 @@ def insert_products(products: list[Product]) -> None:
     if not products:
         return
 
+<<<<<<< HEAD
     with sentry_sdk.start_span(op="db.dedup", name="elastic_client.insert_products") as span:
         span.set_data("products.requested", len(products))
 
@@ -80,6 +81,21 @@ def _get_existing_ids(ids: list[str]) -> set[str]:
         found = {doc["_id"] for doc in response["docs"] if doc.get("found")}
         span.set_data("elasticsearch.ids_found", len(found))
         return found
+=======
+    actions = [
+        {
+            "_index": PRODUCTS_INDEX,
+            "_id": product.id,
+            "_source": {
+                **asdict(product),
+                "semantic_text": f"{product.title}\n\n{product.description}",
+            },
+        }
+        for product in products
+    ]
+
+    bulk(client, actions)
+>>>>>>> main
 
 
 def query_products(
