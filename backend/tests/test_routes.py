@@ -2,8 +2,9 @@ import os
 import unittest
 from unittest.mock import patch
 
-from fastapi import Response
+from fastapi import HTTPException, Response
 from fastapi.testclient import TestClient
+from openai import OpenAIError
 
 os.environ.setdefault("ELASTICSEARCH_URL", "http://localhost:9200")
 os.environ.setdefault("ELASTICSEARCH_API_KEY", "test-key")
@@ -59,6 +60,22 @@ class ProductRouteTests(unittest.TestCase):
 
         self.assertEqual(response, {"image": "base64-image"})
         combine_images.assert_called_once_with(["person.jpg", "dress.jpg"])
+
+    @patch("routers.products.combine_images", return_value=None)
+    def test_try_on_rejects_refused_generation(self, _combine_images) -> None:
+        with self.assertRaises(HTTPException) as ctx:
+            try_on_route(TryOnRequest(image_urls=["person.jpg", "dress.jpg"]))
+
+        self.assertEqual(ctx.exception.status_code, 422)
+        self.assertIn("try-on", ctx.exception.detail.lower())
+
+    @patch("routers.products.combine_images", side_effect=OpenAIError("boom"))
+    def test_try_on_returns_readable_api_error(self, _combine_images) -> None:
+        with self.assertRaises(HTTPException) as ctx:
+            try_on_route(TryOnRequest(image_urls=["person.jpg", "dress.jpg"]))
+
+        self.assertEqual(ctx.exception.status_code, 502)
+        self.assertIn("failed", ctx.exception.detail.lower())
 
     def test_openapi_exposes_current_product_contract(self) -> None:
         paths = TestClient(main.app).get("/openapi.json").json()["paths"]

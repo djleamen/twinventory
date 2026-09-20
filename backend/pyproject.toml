@@ -17,3 +17,9 @@ dependencies = [
 	"requests>=2.34.2",
 	"uvicorn[standard]>=0.35,<1",
 ]
+
+[tool.setuptools]
+py-modules = ["main", "utils"]
+
+[tool.setuptools.packages.find]
+include = ["routers*", "services*"]

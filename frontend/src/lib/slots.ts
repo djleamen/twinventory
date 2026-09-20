@@ -17,7 +17,7 @@ export const SLOTS: Slot[] = [
     label: "Full outfit",
     categories: [
       "Dresses", "Suits", "Outfit Sets", "Loungewear Sets", "Pajamas", "Robes",
-      "Uniforms & Workwear", "Lingerie", "Traditional & Ceremonial Clothing",
+      "Uniforms & Workwear", "Traditional & Ceremonial Clothing",
     ],
   },
   { id: "outer", label: "Outerwear", categories: ["Coats & Jackets", "Cardigans", "Vests", "Blazers"] },
@@ -25,7 +25,7 @@ export const SLOTS: Slot[] = [
   { id: "accessory", label: "Accessory", categories: ["Watches", "Belts", "Scarves & Shawls"] },
 ]
 
-export const HIDDEN_CATEGORIES = new Set(["Baby & Children's Clothing"])
+export const HIDDEN_CATEGORIES = new Set(["Baby & Children's Clothing", "Lingerie"])
 
 export const ALL_CATEGORIES = SLOTS.flatMap((s) => s.categories)
 
