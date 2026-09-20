@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from routers import inventory, recs
+from routers import inventory
 from routers.products import router as products_router
 from services.elastic_client import elasticsearch_is_ready
 from services.mongo_client import mongo_is_ready
@@ -36,7 +36,6 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=str(UPLOADS_DIR)), name="static")
 app.include_router(inventory.router, prefix="/inventory", tags=["inventory"])
-app.include_router(recs.router, prefix="/recs", tags=["recs"])
 app.include_router(products_router)
 
 

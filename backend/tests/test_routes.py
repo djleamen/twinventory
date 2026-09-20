@@ -68,7 +68,6 @@ class ProductRouteTests(unittest.TestCase):
         self.assertIn("/products/try", paths)
         self.assertNotIn("/products/list", paths)
         self.assertNotIn("/products/scrape", paths)
-        self.assertNotIn("/recs/query", paths)
 
 
 class HealthRouteTests(unittest.TestCase):
