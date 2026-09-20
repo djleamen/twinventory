@@ -19,14 +19,14 @@ function toProducts(data: unknown): Product[] {
   throw new Error("The products response wasn't a list. Check the browser console for what came back.")
 }
 
-/** GET /products/list — up to 20 products, optional exact category filter. */
+/** GET /products — up to 20 products, optional exact category filter. */
 export async function listProducts(category?: string): Promise<Product[]> {
-  return toProducts(await apiFetch<unknown>(`/products/list${qs({ category })}`))
+  return toProducts(await apiFetch<unknown>(`/products${qs({ category })}`))
 }
 
 /** GET /products/search — semantic search, optional exact category filter. */
 export async function searchProducts(query: string, category?: string): Promise<Product[]> {
-  return toProducts(await apiFetch<unknown>(`/products/search${qs({ query, category })}`))
+  return toProducts(await apiFetch<unknown>(`/products/search${qs({ q: query, category })}`))
 }
 
 /** POST /products/try — user image first, then the product images. */

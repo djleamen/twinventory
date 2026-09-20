@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
+from openai import OpenAIError
 from pydantic import BaseModel, Field
 
 from services.elastic_client import Product, list_products, query_products
@@ -40,5 +41,16 @@ def search_products_route(
 
 @router.post("/try")
 def try_on_route(request: TryOnRequest) -> dict[str, str]:
-    image = combine_images(request.image_urls)
+    try:
+        image = combine_images(request.image_urls)
+    except OpenAIError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Try-on generation failed. Retry, or try different items.",
+        ) from exc
+    if image is None:
+        raise HTTPException(
+            status_code=422,
+            detail="These items can't be used for a try-on. Try a different outfit.",
+        )
     return {"image": image}

@@ -60,6 +60,13 @@ Request:
 
 At least two URLs are required. The response is `{"image": "<base64>"}`.
 
+Failure modes return JSON `{"detail": "..."}` suitable for direct display:
+
+| Status | Meaning |
+| --- | --- |
+| `422` | The model declined to generate an image for these items |
+| `502` | The OpenAI call failed; the client may retry |
+
 ## Product ingestion
 
 Fiona owns source acquisition. `backend/scripts/scrape_products.py` reads Shopify store URLs from `backend/config.json`, normalizes records into the product model, and calls `insert_products()`.
