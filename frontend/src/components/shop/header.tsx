@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ChevronDownIcon } from "lucide-react"
@@ -33,8 +34,15 @@ export function Header({ user }: { user?: User }) {
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-5 lg:px-8">
-      <Link href="/" className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-        Twinventory
+      <Link href="/" className="relative block h-14 w-40 shrink-0 overflow-hidden sm:w-44">
+        <Image
+          src="/brand/twinventory-wordmark.png"
+          alt="Twinventory"
+          width={2000}
+          height={1000}
+          priority
+          className="absolute top-1/2 left-0 h-auto w-full -translate-y-1/2"
+        />
       </Link>
       {user && (
         <DropdownMenu>
