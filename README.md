@@ -1,22 +1,14 @@
 # twinventory
 
-<img width="2000" height="1000" alt="twinventory (2000x1000px)" src="https://github.com/user-attachments/assets/c9fd872e-4723-47cf-9de4-0c4269a67711" />
+<img width="500" height="250" alt="twinventory (2000x1000px)" src="https://github.com/user-attachments/assets/c9fd872e-4723-47cf-9de4-0c4269a67711" />
 
-Ever stood at your closet with nothing to wear, or bought something online that looked nothing like you expected? Twinventory fixes both- digitize your wardrobe, try clothes on yourself with AI, in 3D.
+### Ever stood at your closet with nothing to wear?
+Maybe you bought something online that looked nothing like you expected? Twinventory fixes both- digitize your wardrobe, try clothes on yourself with AI, in 3D.
 
-Submitted to Hack the North 2026 for:
-
-- OpenAI: API Prizes
-- Shopify: Hack Shopping with AI
-- Elastic: Find the Signal - Best Use of Elasticsearch
-- Sentry: Best Use of Sentry
-- MLH: Best Use of ElevenLabs
-- MLH: Best Use of MongoDB Atlas
-- MLH: Best Domain Name from GoDaddy Registry
-
-## Check it out:
 - [twinventory.fashion](https://www.twinventory.fashion)
 - [Devpost](https://devpost.com/software/project-name-s0vg5w)
+
+---
 
 ## MVP
 
@@ -55,3 +47,15 @@ Production uses Vercel for the Next.js frontend and Railway for the FastAPI back
 6. Attach a volume at `/app/uploads` to persist inventory uploads across deployments.
 
 At GoDaddy, add the exact apex and `www` records shown by Vercel. Add the `api` CNAME and verification TXT record shown by Railway. Provider-generated DNS targets should be copied from their dashboards rather than hard-coded here.
+
+---
+
+Submitted to Hack the North 2026 for:
+
+- OpenAI: API Prizes
+- Shopify: Hack Shopping with AI
+- Elastic: Find the Signal - Best Use of Elasticsearch
+- Sentry: Best Use of Sentry
+- MLH: Best Use of ElevenLabs
+- MLH: Best Use of MongoDB Atlas
+- MLH: Best Domain Name from GoDaddy Registry
