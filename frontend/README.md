@@ -19,7 +19,7 @@ Everything goes through `src/lib/api/`:
 | Feature | Endpoint |
 | --- | --- |
 | Profile, preferences | `GET /users/{username}`, `PATCH /users/{username}/preferences` |
-| Product list / search | `GET /products/list`, `GET /products/search` |
+| Product list / search | `GET /products`, `GET /products/search?q=...` |
 | Try on | `POST /products/try` (user image first, then product images) |
 
 The "Who's shopping?" screen shows the usernames listed in `USERNAMES` in
