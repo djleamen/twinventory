@@ -25,10 +25,10 @@ export function PhotoPanel({ user, result, resultItems, resultCacheKey, showResu
       <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-border bg-secondary">
         {showingResult ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={result!} alt={`${user.username} wearing the selected outfit`} className="h-full w-full object-cover" />
+          <img src={result!} alt={`${user.username} wearing the selected outfit`} className="h-full w-full object-contain" />
         ) : user.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={toApiUrl(user.image_url)} alt={`Photo of ${user.username}`} className="h-full w-full object-cover" />
+          <img src={toApiUrl(user.image_url)} alt={`Photo of ${user.username}`} className="h-full w-full object-contain" />
         ) : (
           <Silhouette className="h-full w-full" />
         )}
