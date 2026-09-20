@@ -14,6 +14,10 @@ Submitted to Hack the North 2026 for:
 - MLH: Best Use of MongoDB Atlas
 - MLH: Best Domain Name from GoDaddy Registry
 
+## Check it out:
+- [twinventory.fashion](https://www.twinventory.fashion)
+- [Devpost](https://devpost.com/software/project-name-s0vg5w)
+
 ## MVP
 
 The core flow is:
