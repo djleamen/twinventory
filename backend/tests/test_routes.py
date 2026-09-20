@@ -53,25 +53,59 @@ class ProductRouteTests(unittest.TestCase):
             limit=5,
         )
 
+    @patch("routers.products.save_try_on_result")
+    @patch("routers.products.get_try_on_result", return_value=None)
     @patch("routers.products.combine_images", return_value="base64-image")
-    def test_try_on_combines_requested_images(self, combine_images) -> None:
+    def test_try_on_combines_requested_images(
+        self, combine_images, _get_cache, save_cache
+    ) -> None:
         request = TryOnRequest(image_urls=["person.jpg", "dress.jpg"])
 
         response = try_on_route(request)
 
-        self.assertEqual(response, {"image": "base64-image"})
+        self.assertEqual(response["image"], "base64-image")
+        self.assertTrue(response["cache_key"])
         combine_images.assert_called_once_with(["person.jpg", "dress.jpg"])
+        save_cache.assert_called_once()
 
+    @patch("routers.products.combine_images")
+    @patch("routers.products.get_try_on_result", return_value="cached-image")
+    def test_try_on_reuses_cached_outfit(self, _get_cache, combine_images) -> None:
+        response = try_on_route(TryOnRequest(image_urls=["person.jpg", "dress.jpg"]))
+
+        self.assertEqual(response["image"], "cached-image")
+        combine_images.assert_not_called()
+
+    @patch("routers.products.save_try_on_result")
+    @patch("routers.products.get_try_on_result")
+    @patch("routers.products.combine_images", return_value="base64-image")
+    def test_try_on_never_stores_ephemeral_inputs(
+        self, _combine_images, get_cache, save_cache
+    ) -> None:
+        request = TryOnRequest(image_urls=["data:image/png;base64,abc", "dress.jpg"])
+
+        response = try_on_route(request)
+
+        self.assertIsNone(response["cache_key"])
+        get_cache.assert_not_called()
+        save_cache.assert_not_called()
+
+    @patch("routers.products.get_try_on_result", return_value=None)
     @patch("routers.products.combine_images", return_value=None)
-    def test_try_on_rejects_refused_generation(self, _combine_images) -> None:
+    def test_try_on_rejects_refused_generation(
+        self, _combine_images, _get_cache
+    ) -> None:
         with self.assertRaises(HTTPException) as ctx:
             try_on_route(TryOnRequest(image_urls=["person.jpg", "dress.jpg"]))
 
         self.assertEqual(ctx.exception.status_code, 422)
         self.assertIn("try-on", ctx.exception.detail.lower())
 
+    @patch("routers.products.get_try_on_result", return_value=None)
     @patch("routers.products.combine_images", side_effect=OpenAIError("boom"))
-    def test_try_on_returns_readable_api_error(self, _combine_images) -> None:
+    def test_try_on_returns_readable_api_error(
+        self, _combine_images, _get_cache
+    ) -> None:
         with self.assertRaises(HTTPException) as ctx:
             try_on_route(TryOnRequest(image_urls=["person.jpg", "dress.jpg"]))
 

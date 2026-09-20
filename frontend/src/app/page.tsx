@@ -1,10 +1,12 @@
 "use client"
 
 import Link from "next/link"
+import { CreateProfileCard } from "@/components/shop/create-profile-dialog"
 import { Header } from "@/components/shop/header"
 import { Silhouette } from "@/components/shop/silhouette"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useUsers } from "@/hooks/queries"
+import { toApiUrl } from "@/lib/api/client"
 
 export default function PickUserPage() {
   const { data: users, isLoading, error } = useUsers()
@@ -33,7 +35,7 @@ export default function PickUserPage() {
                 <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-border bg-secondary group-hover:border-primary">
                   {u.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={u.image_url} alt={`Photo of ${u.username}`} className="h-full w-full object-cover" />
+                    <img src={toApiUrl(u.image_url)} alt={`Photo of ${u.username}`} className="h-full w-full object-cover" />
                   ) : (
                     <Silhouette className="h-full w-full" />
                   )}
@@ -42,6 +44,11 @@ export default function PickUserPage() {
               </Link>
             </li>
           ))}
+          {!isLoading && !error && (
+            <li className="w-56">
+              <CreateProfileCard />
+            </li>
+          )}
         </ul>
       </main>
     </>

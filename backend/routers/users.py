@@ -1,13 +1,18 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from services.mongo_client import User, get_user, update_user
+from services.mongo_client import User, get_user, list_users, update_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 class PreferencesRequest(BaseModel):
     preferences: str
+
+
+@router.get("")
+def list_users_route() -> list[User]:
+    return list_users()
 
 
 @router.get("/{username}")

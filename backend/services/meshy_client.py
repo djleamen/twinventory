@@ -3,7 +3,8 @@ import time
 
 import requests
 
-from utils import _get_required_env
+from services.mongo_client import get_model_task, save_model_task
+from utils import _get_required_env, resolve_image_url
 
 BASE_URL = "https://api.meshy.ai/openapi/v1/image-to-3d"
 
@@ -17,12 +18,35 @@ def get_meshy_session() -> requests.Session:
     return session
 
 
-def get_3d_model(image_url: str) -> str:
-    """Converts a 2D image to a 3D model."""
-    return "https://assets.meshy.ai/e991c18b-f59c-402b-804f-be313fbd1692/tasks/01a0bc86-5c45-73d1-a80c-6019e431a31a/output/model.glb?Expires=1790128609&Signature=mjVDheBXR5unp3ipuSfoRWt0LalpM3VnCmeKYYUJsAlpFrBtWSvMLJjr~OtJ~zkaEIsQAwCC1tiQYim87j7wI7iDSdmyv~puhNNPICzfAtJy3p8~Mngvd0HNiTaZ~eQUWtImE993ltkYlNZ15DpdlZaB2ldBk6zIVF9fpzyDOQCdA702Ae0H2RS9S0vvLzPEblm171TYoc4MDHiKIcyv68rKdmF7QTmCtYeI6wlScr1QOBy3gfZSmzrn~rdOVVlZQVVIvI6QCEN6NP4kYeKD4TU9hxDSvP0GhK2Myd~A4UgAGohEMt-Se3w5ev7rBO0iL0J-RJzw4sKPUBn~cFC-zw__&Key-Pair-Id=K1VGYTHIYLM9UM"
-    # NOTE: For the demo, I'll pregenerate some of these. They take 90 seconds to generate from scratch.
-    # task = wait_for_task(create_task(image_url))
-    # return task["model_urls"]["glb"]
+def get_3d_model(image_url: str, cache_key: str | None = None) -> str:
+    """Converts a 2D image to a 3D model, reusing the cached Meshy task per image.
+
+    Try-on results are keyed by their outfit cache_key; other images by URL.
+    Ephemeral data-URI inputs without a cache_key are never cached.
+    """
+    if cache_key:
+        lookup_key = f"tryon:{cache_key}"
+    elif image_url.startswith("data:"):
+        lookup_key = None
+    else:
+        lookup_key = image_url
+
+    if lookup_key:
+        task_id = get_model_task(lookup_key)
+        if task_id:
+            try:
+                task = get_task(task_id)
+                # Fetching a finished task returns a freshly signed GLB URL.
+                if task.get("status") == "SUCCEEDED":
+                    return task["model_urls"]["glb"]
+            except requests.HTTPError:
+                pass  # task gone upstream — regenerate below
+
+    task_id = create_task(image_url)
+    task = wait_for_task(task_id)
+    if lookup_key:
+        save_model_task(lookup_key, task_id)
+    return task["model_urls"]["glb"]
 
 
 def create_task(image_url: str) -> str:
@@ -30,7 +54,7 @@ def create_task(image_url: str) -> str:
     response = get_meshy_session().post(
         BASE_URL,
         json={
-            "image_url": image_url,
+            "image_url": resolve_image_url(image_url),
             "model_type": "standard",
             "should_texture": True,
             "target_formats": ["glb"],

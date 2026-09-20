@@ -3,18 +3,20 @@
 import { Loader2Icon } from "lucide-react"
 import { Silhouette } from "./silhouette"
 import { ModelViewButton } from "./model-view-dialog"
+import { toApiUrl } from "@/lib/api/client"
 import type { Product, User } from "@/lib/types"
 
 type Props = {
   user: User
   result: string | null
   resultItems: Product[]
+  resultCacheKey: string | null
   showResult: boolean
   onToggleResult: () => void
   isGenerating: boolean
 }
 
-export function PhotoPanel({ user, result, resultItems, showResult, onToggleResult, isGenerating }: Props) {
+export function PhotoPanel({ user, result, resultItems, resultCacheKey, showResult, onToggleResult, isGenerating }: Props) {
   const showingResult = !!result && showResult
   const shownImage = showingResult ? result : user.image_url
 
@@ -26,7 +28,7 @@ export function PhotoPanel({ user, result, resultItems, showResult, onToggleResu
           <img src={result!} alt={`${user.username} wearing the selected outfit`} className="h-full w-full object-cover" />
         ) : user.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={user.image_url} alt={`Photo of ${user.username}`} className="h-full w-full object-cover" />
+          <img src={toApiUrl(user.image_url)} alt={`Photo of ${user.username}`} className="h-full w-full object-cover" />
         ) : (
           <Silhouette className="h-full w-full" />
         )}
@@ -39,6 +41,7 @@ export function PhotoPanel({ user, result, resultItems, showResult, onToggleResu
           <ModelViewButton
             key={shownImage}
             imageUrl={shownImage}
+            cacheKey={showingResult ? resultCacheKey : null}
             title={showingResult ? "Your try-on in 3D" : `${user.username} in 3D`}
           />
         )}
