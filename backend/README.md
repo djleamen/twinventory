@@ -30,8 +30,11 @@ The API is available at `http://127.0.0.1:8000`, with interactive documentation 
 | `MONGODB_URI` | MongoDB connection string used by the health check and inventory services |
 | `MONGODB_DB` | MongoDB database name |
 | `FRONTEND_ORIGINS` | Comma-separated browser origins allowed by CORS; defaults to `http://localhost:5173` |
+| `SENTRY_DSN` | Sentry project DSN; when unset, Sentry is fully disabled and the app runs normally |
+| `SENTRY_ENVIRONMENT` | Sentry environment tag (e.g. `development`, `production`); defaults to `development` |
+| `SENTRY_TRACES_SAMPLE_RATE` | Fraction of requests traced (0.0-1.0); defaults to `1.0` |
 
-An OpenAI key is currently required when the application starts, even when only product endpoints are used.
+An OpenAI key is currently required when the application starts, even when only product endpoints are used. Unlike the other variables above, Sentry is optional: the app boots and behaves identically with no `SENTRY_DSN` set.
 
 ## Product schema
 

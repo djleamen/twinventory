@@ -21,7 +21,10 @@ class ElasticClientTests(unittest.TestCase):
         )
 
     @patch("services.elastic_client.bulk")
-    def test_insert_products_builds_semantic_text(self, bulk) -> None:
+    @patch("services.elastic_client.client.mget")
+    def test_insert_products_builds_semantic_text(self, mget, bulk) -> None:
+        mget.return_value = {"docs": [{"_id": self.product.id, "found": False}]}
+
         insert_products([self.product])
 
         actions = bulk.call_args.args[1]

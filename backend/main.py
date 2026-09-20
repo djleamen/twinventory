@@ -1,13 +1,41 @@
+import logging
 import os
-from collections.abc import Callable
 
-from fastapi import FastAPI, Response, status
-from fastapi.middleware.cors import CORSMiddleware
+import sentry_sdk
+from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.openai import OpenAIIntegration
 
-from routers.products import router as products_router
-from services.elastic_client import elasticsearch_is_ready
-from services.mongo_client import mongo_is_ready
+from collections.abc import Callable  # noqa: E402
 
+from fastapi import FastAPI, Response, status  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+from routers.products import router as products_router  # noqa: E402
+from services.elastic_client import elasticsearch_is_ready  # noqa: E402
+from services.mongo_client import mongo_is_ready  # noqa: E402
+
+def _init_sentry() -> None:
+    dsn = os.getenv("SENTRY_DSN")
+    if not dsn:
+        logging.getLogger(__name__).warning(
+            "SENTRY_DSN not set; Sentry tracing/logging/AI monitoring disabled."
+        )
+        return
+
+    sentry_sdk.init(
+        dsn=dsn,
+        environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
+        send_default_pii=True,
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
+        enable_logs=True,
+        integrations=[
+            LoggingIntegration(sentry_logs_level=logging.INFO),
+            OpenAIIntegration(include_prompts=False),
+        ],
+    )
+
+
+_init_sentry()
 
 def frontend_origins() -> list[str]:
     return [
@@ -48,3 +76,8 @@ def health(response: Response) -> dict[str, str]:
     if "unavailable" in result.values():
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return result
+
+# test sentry
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0

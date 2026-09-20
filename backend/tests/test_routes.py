@@ -2,6 +2,7 @@ import os
 import unittest
 from unittest.mock import patch
 
+import sentry_sdk
 from fastapi import Response
 from fastapi.testclient import TestClient
 
@@ -78,6 +79,14 @@ class HealthRouteTests(unittest.TestCase):
 
         self.assertEqual(result["elasticsearch"], "unavailable")
         self.assertEqual(response.status_code, 503)
+
+
+class SentryInitTests(unittest.TestCase):
+    def test_init_sentry_is_a_noop_without_dsn(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            main._init_sentry()
+
+        self.assertFalse(sentry_sdk.is_initialized())
 
 
 class CorsConfigurationTests(unittest.TestCase):
