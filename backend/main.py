@@ -5,7 +5,7 @@ import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.integrations.openai import OpenAIIntegration
 
-from collections.abc import Callable  
+from collections.abc import Callable
 
 from pathlib import Path
 
@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 from routers import inventory
+from routers.models import router as models_router
 from routers.products import router as products_router
 from routers.speech import router as speech_router
 from routers.users import router as users_router
@@ -71,6 +72,7 @@ app.include_router(inventory.router, prefix="/inventory", tags=["inventory"])
 app.include_router(products_router)
 app.include_router(speech_router)
 app.include_router(users_router)
+app.include_router(models_router)
 
 
 @app.get("/")

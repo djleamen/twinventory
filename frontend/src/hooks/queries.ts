@@ -3,6 +3,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { listProducts, searchProducts, tryOn } from "@/lib/api/products"
 import { getUser, getUsers, updatePreferences } from "@/lib/api/users"
+import { convertToModel } from "@/lib/api/models"
 import { HIDDEN_CATEGORIES } from "@/lib/slots"
 import type { Product, User } from "@/lib/types"
 
@@ -69,5 +70,20 @@ export function useProducts(query: string, categories: string[] | undefined) {
 export function useTryOn() {
   return useMutation({
     mutationFn: (imageUrls: string[]) => tryOn(imageUrls),
+  })
+}
+
+/**
+ * Converts an image to a 3D model once per image, then reuses the result.
+ * Only runs while `enabled` is true (i.e. the 3D dialog is open).
+ */
+export function useModel(imageUrl: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["model", imageUrl],
+    queryFn: () => convertToModel(imageUrl),
+    enabled,
+    staleTime: 30 * 60 * 1000, // Meshy links expire, so don't keep them forever
+    gcTime: 30 * 60 * 1000,
+    retry: false,
   })
 }

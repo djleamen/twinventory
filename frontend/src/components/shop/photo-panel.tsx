@@ -2,6 +2,7 @@
 
 import { Loader2Icon } from "lucide-react"
 import { Silhouette } from "./silhouette"
+import { ModelViewButton } from "./model-view-dialog"
 import type { Product, User } from "@/lib/types"
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
 
 export function PhotoPanel({ user, result, resultItems, showResult, onToggleResult, isGenerating }: Props) {
   const showingResult = !!result && showResult
+  const shownImage = showingResult ? result : user.image_url
 
   return (
     <section aria-label="Your photo" className="flex flex-col gap-3">
@@ -32,6 +34,14 @@ export function PhotoPanel({ user, result, resultItems, showResult, onToggleResu
         <span className="absolute top-3 left-3 rounded-full bg-card px-3 py-1 text-[13px] font-medium shadow-xs">
           {showingResult ? "Try-on result" : "Your photo"}
         </span>
+
+        {shownImage && !isGenerating && (
+          <ModelViewButton
+            key={shownImage}
+            imageUrl={shownImage}
+            title={showingResult ? "Your try-on in 3D" : `${user.username} in 3D`}
+          />
+        )}
 
         {isGenerating && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/85" role="status">
