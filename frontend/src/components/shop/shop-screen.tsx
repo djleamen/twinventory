@@ -2,10 +2,8 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { SearchIcon } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Header } from "./header"
 import { PhotoPanel } from "./photo-panel"
@@ -13,6 +11,7 @@ import { Preferences } from "./preferences"
 import { SlotRow } from "./slot-row"
 import { CategoryChips } from "./category-chips"
 import { ProductGrid } from "./product-grid"
+import { VoiceSearchBar } from "./voice-search-bar"
 import { useProducts, useTryOn, useUser } from "@/hooks/queries"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import {
@@ -115,20 +114,7 @@ export function ShopScreen({ username }: { username: string }) {
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col gap-5 px-5 pt-6 lg:px-8">
-          <div className="relative">
-            <label htmlFor="search" className="sr-only">
-              Search clothing
-            </label>
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input
-              id="search"
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={'Try "winter layers" or "something for a summer wedding"'}
-              className="h-13 rounded-xl bg-card pl-12 text-base md:text-base"
-            />
-          </div>
+          <VoiceSearchBar value={search} onChange={setSearch} isLoading={products.isLoading} />
 
           <SlotRow
             outfit={outfit}
