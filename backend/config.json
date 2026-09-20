@@ -3,8 +3,19 @@
         "Clothing", 
         "Jewelry & Accessories"
     ],
-    "shops_url": [
+    "scraped_shops": [
         "https://www.allbirds.com/",
-        "https://kith.com/"
+        "https://www.taylorstitch.com/"
+    ],
+    "shops_url": [
+        "https://kith.com/",
+        "https://www.taylorstitch.com/",
+        "https://www.outdoorvoices.com/",
+        "https://www.puravidabracelets.com/",
+        "https://www.untuckit.com/",
+        "https://www.jennikayne.com/",
+        "https://www.marinelayer.com/",
+        "https://www.rothys.com/",
+        "https://www.mejuri.com/"
     ]
 }

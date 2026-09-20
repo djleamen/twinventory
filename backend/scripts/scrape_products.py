@@ -5,12 +5,16 @@ import json
 import logging
 import re
 import sys
+from dataclasses import asdict
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import requests
 import sentry_sdk
 from browserbase import Browserbase
+from PIL import Image
 from playwright.sync_api import Page, sync_playwright
 
 from services.elastic_client import Product, insert_products
@@ -24,6 +28,10 @@ PRODUCTS_PER_PAGE = 250
 MAX_PRODUCTS_JSON_RESULTS = 25_000
 MAX_PAGES = MAX_PRODUCTS_JSON_RESULTS // PRODUCTS_PER_PAGE
 DEFAULT_MAX_PRODUCTS = 100
+IMAGE_REQUEST_TIMEOUT = 10  # seconds
+MAX_IMAGE_BYTES = 20 * 1024 * 1024  # guards against a "faulty" URL streaming forever
+
+_image_session = requests.Session()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -47,6 +55,44 @@ def _strip_html(html: str) -> str:
     return re.sub(r"<[^>]+>", " ", html or "").strip()
 
 
+def _image_url_is_valid(image_url: str) -> bool:
+    """Fetches the image and confirms it's reachable, returns 200, and decodes as a real image."""
+    try:
+        response = _image_session.get(image_url, timeout=IMAGE_REQUEST_TIMEOUT, stream=True)
+    except requests.RequestException as e:
+        logger.warning("Image URL unreachable %s: %s", image_url, e)
+        return False
+
+    with response:
+        if response.status_code != 200:
+            logger.warning("Image URL returned HTTP %d: %s", response.status_code, image_url)
+            return False
+
+        content_type = response.headers.get("Content-Type", "")
+        if not content_type.startswith("image/"):
+            logger.warning("Image URL isn't an image (Content-Type=%r): %s", content_type, image_url)
+            return False
+
+        try:
+            content = response.raw.read(MAX_IMAGE_BYTES + 1, decode_content=True)
+        except requests.RequestException as e:
+            logger.warning("Image URL failed while downloading %s: %s", image_url, e)
+            return False
+
+    if len(content) > MAX_IMAGE_BYTES:
+        logger.warning("Image URL exceeds %d byte cap: %s", MAX_IMAGE_BYTES, image_url)
+        return False
+
+    try:
+        with Image.open(BytesIO(content)) as img:
+            img.load()
+    except Exception as e:
+        logger.warning("Image URL didn't decode as an image %s: %s", image_url, e)
+        return False
+
+    return True
+
+
 def _to_product(shop_url: str, shop_name: str, item: dict[str, Any]) -> Product | None:
     variants = item.get("variants") or []
     images = item.get("images") or []
@@ -68,6 +114,15 @@ def _to_product(shop_url: str, shop_name: str, item: dict[str, Any]) -> Product 
     parsed_image_url = urlparse(image_url)
     if parsed_image_url.scheme not in {"http", "https"} or not parsed_image_url.netloc:
         logger.debug("Skipping product %s from %s: invalid image URL", item.get("id"), shop_url)
+        return None
+
+    if not _image_url_is_valid(image_url):
+        logger.warning(
+            "Skipping product %s from %s: image URL failed validation: %s",
+            item.get("id"),
+            shop_url,
+            image_url,
+        )
         return None
 
     return Product(
@@ -182,7 +237,9 @@ def scrape_product_data(
         playwright.stop()
 
     logger.info("Indexing %d products into Elasticsearch", len(all_products))
-    insert_products(all_products)
+    # add products into a json file for testing purposes
+    with open("products.json", "w") as f:
+        json.dump([asdict(product) for product in all_products], f, indent=4)
     logger.info(
         "Scraped %d products. View recording at https://browserbase.com/sessions/%s",
         len(all_products),

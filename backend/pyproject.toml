@@ -11,6 +11,7 @@ dependencies = [
 	"fastapi>=0.116,<1",
 	"playwright>=1.47,<2",
 	"openai>=3.16.2",
+	"pillow>=12,<13",
 	"pymongo>=4.11,<5",
 	"python-dotenv>=1,<2",
 	"python-multipart",
